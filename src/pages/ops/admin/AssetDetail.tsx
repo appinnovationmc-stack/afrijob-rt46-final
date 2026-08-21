@@ -1,0 +1,267 @@
+import { useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Package } from 'lucide-react';
+import {
+  useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments,
+} from '@/hooks/useAssetRegistry';
+import { useAssetParts } from '@/hooks/useWorkOrderParts';
+import { SkeletonCard } from '@/components/ui/SkeletonCard';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ComplianceStatusChip } from '@/components/ui/StatusChip';
+import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
+
+type Tab = 'overview' | 'work-orders' | 'maintenance' | 'incidents' | 'documents' | 'parts';
+
+const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
+  { id: 'overview', label: 'Overview', icon: Gauge },
+  { id: 'work-orders', label: 'Work Orders', icon: Wrench },
+  { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
+  { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
+  { id: 'parts', label: 'Parts', icon: Package },
+  { id: 'documents', label: 'Documents', icon: FileText },
+];
+
+// PART_SOURCE_LABELS mirrors SOURCE_LABELS below, same honesty-about-origin
+// reasoning: a part logged through the legacy per-job form and a stock
+// movement issued through the Ops inventory module are still two different
+// recording paths under the hood (see work_order_parts_unified), even
+// though this tab shows them as one history.
+const PART_SOURCE_LABELS: Record<string, string> = {
+  job_parts: 'Logged on job',
+  inventory_movements: 'Issued from stock',
+};
+
+// SOURCE_LABELS makes work_orders.source_system readable — 'afrijob' is the
+// legacy per-workshop job-card flow, 'rt46' is the government programme,
+// 'native' is created directly in the generic Ops work-order UI. Showing
+// this per row is the point: it's a single history that's honest about
+// where each item originated, rather than hiding the seam or pretending
+// there's only ever been one system.
+const SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriJob', rt46: 'RT46', native: 'Ops' };
+
+export default function AssetDetail() {
+  const { assetId } = useParams<{ assetId: string }>();
+  const [tab, setTab] = useState<Tab>('overview');
+
+  const { data: asset, isLoading: assetLoading } = useAsset(assetId);
+  const { data: workOrders } = useAssetWorkOrders(assetId);
+  const { data: incidents } = useAssetIncidents(assetId);
+  const { data: maintenance } = useAssetMaintenanceSchedules(assetId);
+  const { data: documents } = useAssetDocuments(assetId);
+  const { data: parts } = useAssetParts(assetId);
+
+  if (assetLoading) {
+    return (
+      <div className="px-4 pt-6 pb-24">
+        <SkeletonCard /><SkeletonCard />
+      </div>
+    );
+  }
+
+  if (!asset) {
+    return (
+      <div className="px-4 pt-6 pb-24">
+        <EmptyState icon={Gauge} title="Asset not found" description="This asset may have been removed, or you don't have access to it." />
+      </div>
+    );
+  }
+
+  const openWorkOrders = (workOrders ?? []).filter((w) => !['completed', 'closed', 'cancelled'].includes(w.status));
+  const totalCost = (workOrders ?? []).reduce((sum, w) => sum + (w.actual_cost ?? 0), 0);
+  const overdueMaintenance = (maintenance ?? []).filter((m) => m.active && m.next_due_at && new Date(m.next_due_at) < new Date());
+  const openIncidents = (incidents ?? []).filter((i) => i.status !== 'resolved' && i.status !== 'closed');
+
+  const title = [asset.manufacturer, asset.model].filter(Boolean).join(' ') || asset.asset_number || 'Asset';
+
+  return (
+    <div className="px-4 pt-6 pb-24">
+      <Link to="/ops/admin/assets" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <ArrowLeft className="w-4 h-4" /> Assets
+      </Link>
+
+      <div className="flex items-start justify-between mb-1">
+        <div>
+          <h1 className="font-heading font-bold text-2xl">{title}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {asset.asset_number && <span className="font-mono">{asset.asset_number}</span>}
+            {asset.registration && <span> · {asset.registration}</span>}
+            {asset.year && <span> · {asset.year}</span>}
+          </p>
+        </div>
+        <ComplianceStatusChip status={asset.status} />
+      </div>
+
+      {/* At-a-glance row — the "what needs attention right now" summary,
+          computed from the same data the tabs below show in full. */}
+      <div className="grid grid-cols-2 gap-2 my-4">
+        <div className="card !py-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Open work</p>
+          <p className="font-heading font-bold text-lg">{openWorkOrders.length}</p>
+        </div>
+        <div className="card !py-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">Total cost</p>
+          <p className="font-heading font-bold text-lg">{formatCurrencyZAR(totalCost)}</p>
+        </div>
+        <div className={cn('card !py-3', overdueMaintenance.length > 0 && 'border-danger/40')}>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Overdue maintenance</p>
+          <p className={cn('font-heading font-bold text-lg', overdueMaintenance.length > 0 && 'text-danger')}>
+            {overdueMaintenance.length}
+          </p>
+        </div>
+        <div className={cn('card !py-3', openIncidents.length > 0 && 'border-danger/40')}>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Open incidents</p>
+          <p className={cn('font-heading font-bold text-lg', openIncidents.length > 0 && 'text-danger')}>
+            {openIncidents.length}
+          </p>
+        </div>
+      </div>
+
+      <div className="flex gap-1 overflow-x-auto mb-4 -mx-4 px-4">
+        {TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap shrink-0 transition-colors',
+              tab === id ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-charcoal-light text-gray-600 dark:text-gray-300'
+            )}
+          >
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+        <div className="card space-y-2 text-sm">
+          <Row label="Manufacturer" value={asset.manufacturer} />
+          <Row label="Model" value={asset.model} />
+          <Row label="VIN" value={asset.vin} mono />
+          <Row label="Serial number" value={asset.serial_number} mono />
+          <Row label="Meter" value={asset.meter_value != null ? `${asset.meter_value} (${asset.meter_type})` : null} />
+          <Row label="Commissioned" value={formatDate(asset.commissioned_at)} />
+          {asset.retired_at && <Row label="Retired" value={formatDate(asset.retired_at)} />}
+        </div>
+      )}
+
+      {tab === 'work-orders' && (
+        (workOrders ?? []).length === 0 ? (
+          <EmptyState icon={Wrench} title="No work orders" description="Nothing has been logged against this asset yet." />
+        ) : (
+          <div className="space-y-2">
+            {workOrders!.map((w) => (
+              <div key={w.id} className="card !py-3">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-medium text-sm flex-1">{w.description || w.category}</p>
+                  <ComplianceStatusChip status={w.status} />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {SOURCE_LABELS[w.source_system ?? ''] ?? w.source_system} · {w.category} · {w.priority} priority
+                  {w.actual_cost != null && <span> · {formatCurrencyZAR(w.actual_cost)}</span>}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {w.completed_at ? `Completed ${formatDate(w.completed_at)}` : w.due_at ? `Due ${formatDate(w.due_at)}` : formatDate(w.created_at)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {tab === 'maintenance' && (
+        (maintenance ?? []).length === 0 ? (
+          <EmptyState icon={CalendarClock} title="No maintenance schedules" description="No preventive maintenance is configured for this asset." />
+        ) : (
+          <div className="space-y-2">
+            {maintenance!.map((m) => {
+              const overdue = m.active && m.next_due_at && new Date(m.next_due_at) < new Date();
+              return (
+                <div key={m.id} className={cn('card !py-3', overdue && 'border-danger/40')}>
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="font-medium text-sm flex-1">{m.name}</p>
+                    {!m.active && <span className="text-xs text-gray-400">Inactive</span>}
+                    {overdue && <span className="text-xs font-semibold text-danger">Overdue</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {m.trigger_type} · {m.next_due_at ? `Next due ${formatDate(m.next_due_at)}` : 'No due date set'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {tab === 'incidents' && (
+        (incidents ?? []).length === 0 ? (
+          <EmptyState icon={AlertTriangle} title="No incidents" description="No incidents have been reported for this asset." />
+        ) : (
+          <div className="space-y-2">
+            {incidents!.map((i) => (
+              <div key={i.id} className="card !py-3">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-medium text-sm flex-1">{i.category}</p>
+                  <ComplianceStatusChip status={i.status} />
+                </div>
+                {i.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{i.description}</p>}
+                <p className="text-xs text-gray-400 mt-0.5">{i.severity} severity · {formatDate(i.occurred_at)}</p>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {tab === 'parts' && (
+        (parts ?? []).length === 0 ? (
+          <EmptyState icon={Package} title="No parts recorded" description="No parts have been logged or issued against this asset yet." />
+        ) : (
+          <div className="space-y-2">
+            <div className="card !py-3 flex items-center justify-between text-sm font-semibold">
+              <span>Parts total</span>
+              <span>{formatCurrencyZAR(parts!.reduce((sum, p) => sum + p.line_total, 0))}</span>
+            </div>
+            {parts!.map((p) => (
+              <div key={`${p.source}-${p.id}`} className="card !py-3">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-medium text-sm flex-1">{p.description}</p>
+                  <p className="font-semibold text-sm">{formatCurrencyZAR(p.line_total)}</p>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {PART_SOURCE_LABELS[p.source] ?? p.source} · {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'}
+                </p>
+                <p className="text-xs text-gray-400 mt-0.5">{formatDate(p.created_at)}</p>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {tab === 'documents' && (
+        (documents ?? []).length === 0 ? (
+          <EmptyState icon={FileText} title="No documents" description="No compliance documents are attached to this asset." />
+        ) : (
+          <div className="space-y-2">
+            {documents!.map((d) => (
+              <div key={d.id} className="card !py-3 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">{d.doc_type}</p>
+                  {d.expiry_date && <p className="text-xs text-gray-500 dark:text-gray-400">Expires {formatDate(d.expiry_date)}</p>}
+                </div>
+                <ComplianceStatusChip status={d.status} />
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+function Row({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
+  if (!value) return null;
+  return (
+    <div className="flex justify-between py-1 border-b border-gray-100 dark:border-charcoal-light last:border-0">
+      <span className="text-gray-500 dark:text-gray-400">{label}</span>
+      <span className={cn('font-medium', mono && 'font-mono text-xs')}>{value}</span>
+    </div>
+  );
+}
