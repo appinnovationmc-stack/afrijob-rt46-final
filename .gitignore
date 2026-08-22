@@ -4,3 +4,6 @@ dist/
 .env.local
 *.tsbuildinfo
 .vercel
+.env*
+supabase/.temp/
+afriops-src.zip
