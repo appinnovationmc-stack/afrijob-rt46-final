@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '@/lib/supabase';
 import { useToastStore } from '@/components/ui/Toast';
+import { createOrganisationAndWorkshop } from '@/lib/organisations';
 
 const schema = z.object({
   fullName: z.string().min(2, 'Enter your name'),
@@ -45,15 +46,15 @@ export default function SignUp() {
       return;
     }
 
-    const { error: workshopError } = await supabase
-      .from('workshops')
-      .insert({ owner_id: data.user.id, name: values.workshopName });
-
-    setLoading(false);
-    if (workshopError) {
-      push(workshopError.message, 'error');
+    try {
+      await createOrganisationAndWorkshop(supabase, data.user.id, values.workshopName);
+    } catch (err: any) {
+      setLoading(false);
+      push(err.message ?? 'Failed to create workshop', 'error');
       return;
     }
+
+    setLoading(false);
 
     push('Account created!', 'success');
     navigate('/', { replace: true });

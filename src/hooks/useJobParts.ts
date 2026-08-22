@@ -28,6 +28,13 @@ export function useAddJobPart() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['job-parts', data.job_id] });
+      // If this part was linked to a catalog item, a DB trigger mirrors it
+      // into inventory_movements and decrements stock — refresh both so the
+      // Inventory page and the unified work-order parts view stay in sync.
+      if (data.inventory_item_id) {
+        qc.invalidateQueries({ queryKey: ['ops', 'inventory'] });
+        qc.invalidateQueries({ queryKey: ['work-order-parts-unified'] });
+      }
     },
   });
 }

@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
+import { NotificationBell } from './NotificationBell';
 import { useSyncQueue } from '@/hooks/useSyncQueue';
 import { useRt46SyncQueue } from '@/hooks/useRt46SyncQueue';
 import { WifiOff, RefreshCw } from 'lucide-react';
@@ -25,6 +26,11 @@ export function AppShell() {
           Syncing offline changes…
         </div>
       )}
+      <div className="fixed top-3 right-3 z-40">
+        <div className="rounded-full bg-white/90 dark:bg-charcoal-light/90 backdrop-blur shadow-card">
+          <NotificationBell />
+        </div>
+      </div>
       <main className="flex-1 pb-24">
         <Outlet />
       </main>

@@ -16,6 +16,8 @@ function queuedJobToDisplay(q: QueuedJob): DisplayJob {
   return {
     id: q.localId,
     workshop_id: q.workshop_id,
+    asset_id: null,
+    generic_work_order_id: null,
     created_by: q.created_by ?? '',
     vehicle_registration: q.vehicle_registration,
     vehicle_vin: q.vehicle_vin ?? null,
