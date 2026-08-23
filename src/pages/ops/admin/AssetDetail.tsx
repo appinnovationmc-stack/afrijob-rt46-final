@@ -1,20 +1,22 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge } from 'lucide-react';
+import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes } from 'lucide-react';
 import {
   useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments,
 } from '@/hooks/useAssetRegistry';
+import { useAssetParts } from '@/hooks/useWorkOrderParts';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ComplianceStatusChip } from '@/components/ui/StatusChip';
 import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
 import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 
-type Tab = 'overview' | 'work-orders' | 'maintenance' | 'incidents' | 'documents';
+type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents';
 
 const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'overview', label: 'Overview', icon: Gauge },
   { id: 'work-orders', label: 'Work Orders', icon: Wrench },
+  { id: 'parts', label: 'Parts', icon: Boxes },
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
   { id: 'documents', label: 'Documents', icon: FileText },
@@ -28,6 +30,13 @@ const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
 // there's only ever been one system.
 const SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriJob', rt46: 'RT46', native: 'Ops' };
 
+// Same idea as SOURCE_LABELS but for the Parts tab: work_order_parts_unified
+// rows carry `source` = 'job_parts' (recorded via a workshop job's Parts &
+// Labour form) or 'inventory_movements' (issued from the Ops Inventory
+// module against this asset's work order). Both are real usage — this just
+// says where each line came from, same honesty as the Work Orders tab.
+const PART_SOURCE_LABELS: Record<string, string> = { job_parts: 'Job', inventory_movements: 'Inventory' };
+
 export default function AssetDetail() {
   const { assetId } = useParams<{ assetId: string }>();
   const [tab, setTab] = useState<Tab>('overview');
@@ -36,6 +45,7 @@ export default function AssetDetail() {
 
   const { data: asset, isLoading: assetLoading } = useAsset(assetId);
   const { data: workOrders } = useAssetWorkOrders(assetId);
+  const { data: parts } = useAssetParts(assetId);
   const { data: incidents } = useAssetIncidents(assetId);
   const { data: maintenance } = useAssetMaintenanceSchedules(assetId);
   const { data: documents } = useAssetDocuments(assetId);
@@ -60,6 +70,7 @@ export default function AssetDetail() {
   const totalCost = (workOrders ?? []).reduce((sum, w) => sum + (w.actual_cost ?? 0), 0);
   const overdueMaintenance = (maintenance ?? []).filter((m) => m.active && m.next_due_at && new Date(m.next_due_at) < new Date());
   const openIncidents = (incidents ?? []).filter((i) => i.status !== 'resolved' && i.status !== 'closed');
+  const partsTotal = (parts ?? []).reduce((sum, p) => sum + (p.line_total ?? 0), 0);
 
   const title = [asset.manufacturer, asset.model].filter(Boolean).join(' ') || asset.asset_number || industryConfig.assetLabelSingular;
 
@@ -153,6 +164,31 @@ export default function AssetDetail() {
                 </p>
               </div>
             ))}
+          </div>
+        )
+      )}
+
+      {tab === 'parts' && (
+        (parts ?? []).length === 0 ? (
+          <EmptyState icon={Boxes} title="No parts logged" description="No parts have been recorded against this asset's work orders yet." />
+        ) : (
+          <div className="space-y-2">
+            {parts!.map((p) => (
+              <div key={p.id} className="flex items-center justify-between text-sm">
+                <div>
+                  <p className="font-medium">{p.description}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {PART_SOURCE_LABELS[p.source] ?? p.source} · {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'} · {formatDate(p.created_at)}
+                  </p>
+                </div>
+                <p className="font-semibold">{p.line_total != null ? formatCurrencyZAR(p.line_total) : '—'}</p>
+              </div>
+            ))}
+            <hr className="border-gray-100 dark:border-gray-800 my-1" />
+            <div className="flex items-center justify-between text-sm font-semibold">
+              <span>Parts total</span>
+              <span>{formatCurrencyZAR(partsTotal)}</span>
+            </div>
           </div>
         )
       )}
