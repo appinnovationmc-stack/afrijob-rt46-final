@@ -15,6 +15,61 @@ export const INDUSTRY_LABELS: Record<IndustryMode, string> = {
   logistics: 'Logistics',
 };
 
+// Real config, not decoration: this is what makes industry_mode actually
+// change the product rather than just showing a badge. Two things it
+// drives right now — asset terminology (a mining "asset" is Equipment,
+// a fleet one is a Vehicle) and which Ops modules are surfaced first on
+// the dashboard. priorityModules values must match the moduleKey strings
+// used in OpsDashboard's NAV_ITEMS — cross-checked against that file
+// rather than invented. Orderings follow the worked examples in the
+// AfriOps platform spec (Mining/Fleet/Municipal/Government/Logistics
+// module priorities), not a guess.
+export interface IndustryConfig {
+  assetLabelSingular: string;
+  assetLabelPlural: string;
+  tagline: string;
+  priorityModules: string[];
+}
+
+export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
+  general: {
+    assetLabelSingular: 'Asset',
+    assetLabelPlural: 'Assets',
+    tagline: 'Operations overview',
+    priorityModules: [],
+  },
+  mining: {
+    assetLabelSingular: 'Equipment',
+    assetLabelPlural: 'Equipment',
+    tagline: 'Mobile equipment, safety and site maintenance',
+    priorityModules: ['maintenance', 'incidents', 'inventory', 'procurement', 'documents'],
+  },
+  fleet: {
+    assetLabelSingular: 'Vehicle',
+    assetLabelPlural: 'Vehicles',
+    tagline: 'Vehicles, maintenance and parts',
+    priorityModules: ['maintenance', 'inventory', 'procurement', 'documents', 'sla'],
+  },
+  municipal: {
+    assetLabelSingular: 'Asset',
+    assetLabelPlural: 'Assets',
+    tagline: 'Service requests, work and SLA performance',
+    priorityModules: ['sla', 'incidents', 'procurement', 'documents', 'maintenance'],
+  },
+  government: {
+    assetLabelSingular: 'Asset',
+    assetLabelPlural: 'Assets',
+    tagline: 'Procurement, compliance and SLA performance',
+    priorityModules: ['procurement', 'documents', 'sla', 'incidents', 'maintenance'],
+  },
+  logistics: {
+    assetLabelSingular: 'Vehicle',
+    assetLabelPlural: 'Vehicles',
+    tagline: 'Routes, maintenance and incidents',
+    priorityModules: ['maintenance', 'incidents', 'procurement', 'documents', 'inventory'],
+  },
+};
+
 export interface OrganisationMembership {
   organisation_id: string;
   role: OrganisationRole;

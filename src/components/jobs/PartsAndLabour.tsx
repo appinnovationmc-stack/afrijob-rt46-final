@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useJobParts, useAddJobPart, useDeleteJobPart } from '@/hooks/useJobParts';
+import { useWorkOrderParts } from '@/hooks/useWorkOrderParts';
 import { useUpdateJob } from '@/hooks/useJobs';
 import { useInventoryItems } from '@/hooks/useAfriops';
 import { useToastStore } from '@/components/ui/Toast';
@@ -7,8 +8,53 @@ import { formatCurrencyZAR } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { Plus, Trash2, Wrench } from 'lucide-react';
 
-export function PartsAndLabour({ jobId, labourHours }: { jobId: string; labourHours: number | null }) {
-  const { data: parts, isLoading } = useJobParts(jobId);
+// Normalized shape both data sources get mapped into for rendering.
+// - job_parts rows are always deletable here (they're this job's own rows).
+// - inventory_movements-sourced rows (logged from the Ops Inventory page
+//   against the same work order) are display-only in this component; they
+//   get deleted/adjusted from Inventory, not from here.
+type DisplayPart = {
+  id: string;
+  name: string;
+  quantity: number;
+  unitCost: number | null;
+  deletable: boolean;
+};
+
+export function PartsAndLabour({
+  jobId,
+  workOrderId,
+  labourHours,
+}: {
+  jobId: string;
+  workOrderId: string | null | undefined;
+  labourHours: number | null;
+}) {
+  // Prefer the unified view — job_parts entries plus any Ops-inventory-issued
+  // items logged against the same work order — whenever this job is bridged
+  // to one. Jobs without a bridge yet (e.g. still queued offline) fall back
+  // to the raw job_parts read, same as before.
+  const unified = useWorkOrderParts(workOrderId ?? undefined);
+  const legacy = useJobParts(workOrderId ? undefined : jobId);
+
+  const isLoading = workOrderId ? unified.isLoading : legacy.isLoading;
+
+  const parts: DisplayPart[] = workOrderId
+    ? (unified.data ?? []).map((p) => ({
+        id: p.id,
+        name: p.description,
+        quantity: p.quantity,
+        unitCost: p.unit_cost,
+        deletable: p.source === 'job_parts',
+      }))
+    : (legacy.data ?? []).map((p) => ({
+        id: p.id,
+        name: p.part_name,
+        quantity: p.quantity,
+        unitCost: p.unit_cost,
+        deletable: true,
+      }));
+
   const addPart = useAddJobPart();
   const deletePart = useDeleteJobPart();
   const updateJob = useUpdateJob();
@@ -24,7 +70,7 @@ export function PartsAndLabour({ jobId, labourHours }: { jobId: string; labourHo
   const [catalogItemId, setCatalogItemId] = useState('');
   const [hours, setHours] = useState(labourHours != null ? String(labourHours) : '');
 
-  const partsTotal = (parts ?? []).reduce((sum, p) => sum + (p.unit_cost ?? 0) * p.quantity, 0);
+  const partsTotal = parts.reduce((sum, p) => sum + (p.unitCost ?? 0) * p.quantity, 0);
 
   const onSelectCatalogItem = (id: string) => {
     setCatalogItemId(id);
@@ -69,24 +115,30 @@ export function PartsAndLabour({ jobId, labourHours }: { jobId: string; labourHo
     <div className="card">
       <h3 className="font-heading font-bold mb-3">Parts & Labour</h3>
 
-      {!isLoading && !!parts?.length && (
+      {!isLoading && !!parts.length && (
         <div className="flex flex-col gap-2 mb-3">
           {parts.map((p) => (
             <div key={p.id} className="flex items-center justify-between text-sm">
               <div>
-                <p className="font-medium">{p.part_name}</p>
+                <p className="font-medium">{p.name}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'}
+                  {p.quantity} × {p.unitCost != null ? formatCurrencyZAR(p.unitCost) : '—'}
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <p className="font-semibold">{p.unit_cost != null ? formatCurrencyZAR(p.unit_cost * p.quantity) : '—'}</p>
-                <button
-                  onClick={() => deletePart.mutate({ id: p.id, jobId })}
-                  className="text-gray-400 hover:text-danger min-w-touch min-h-touch flex items-center justify-center"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <p className="font-semibold">{p.unitCost != null ? formatCurrencyZAR(p.unitCost * p.quantity) : '—'}</p>
+                {p.deletable ? (
+                  <button
+                    onClick={() => deletePart.mutate({ id: p.id, jobId })}
+                    className="text-gray-400 hover:text-danger min-w-touch min-h-touch flex items-center justify-center"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400 dark:text-gray-500 min-w-touch text-right" title="Logged from Inventory — manage it there">
+                    via Inventory
+                  </span>
+                )}
               </div>
             </div>
           ))}

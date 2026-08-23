@@ -28,12 +28,18 @@ export function useAddJobPart() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['job-parts', data.job_id] });
-      // If this part was linked to a catalog item, a DB trigger mirrors it
-      // into inventory_movements and decrements stock — refresh both so the
-      // Inventory page and the unified work-order parts view stay in sync.
+      // Every job_parts row shows up in work_order_parts_unified regardless
+      // of whether it's catalog-linked, so this must always refresh —
+      // PartsAndLabour reads from the unified view whenever the job has a
+      // bridged work order. Partial key match invalidates every
+      // ['work-order-parts-unified', workOrderId] query, so we don't need
+      // the workOrderId here.
+      qc.invalidateQueries({ queryKey: ['work-order-parts-unified'] });
+      // Only a catalog-linked insert triggers the DB mirror into
+      // inventory_movements and decrements stock, so only refresh Inventory
+      // in that case.
       if (data.inventory_item_id) {
         qc.invalidateQueries({ queryKey: ['ops', 'inventory'] });
-        qc.invalidateQueries({ queryKey: ['work-order-parts-unified'] });
       }
     },
   });
@@ -49,6 +55,9 @@ export function useDeleteJobPart() {
     },
     onSuccess: (jobId) => {
       qc.invalidateQueries({ queryKey: ['job-parts', jobId] });
+      // Same reasoning as useAddJobPart: a deleted job_parts row needs to
+      // disappear from the unified view too, not just the legacy list.
+      qc.invalidateQueries({ queryKey: ['work-order-parts-unified'] });
     },
   });
 }

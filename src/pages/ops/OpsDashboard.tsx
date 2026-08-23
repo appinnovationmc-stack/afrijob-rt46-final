@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import {
   Boxes, ShoppingCart, FolderLock, AlertTriangle, CalendarClock, Gauge as GaugeIcon,
-  ChevronRight, Bell, PackageX, ShieldAlert, Car, Users, Truck, Settings, ShieldCheck,
+  ChevronRight, Bell, PackageX, ShieldAlert, Car, Users,
 } from 'lucide-react';
-import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS } from '@/hooks/useOrganisation';
+import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
@@ -42,17 +42,37 @@ const NAV_ITEMS = [
 
 const ADMIN_NAV_ITEMS = [
   { to: '/ops/admin/assets', label: 'Asset Registry', description: 'Sites, business units, asset types, assets', icon: Car, permission: 'assets.create' },
-  { to: '/ops/admin/service-providers', label: 'Service Providers', description: 'Workshops, contractors, suppliers', icon: Truck, permission: 'serviceproviders.manage' },
-  { to: '/ops/admin/settings', label: 'Organisation Settings', description: 'Industry mode, module visibility', icon: Settings, permission: 'org.manage_settings' },
-  { to: '/ops/admin/permissions', label: 'Permission Matrix', description: 'Role access, platform-wide', icon: ShieldCheck, permission: 'org.manage_settings' },
   { to: '/ops/admin/team', label: 'Team & Roles', description: 'Members and access levels', icon: Users, permission: 'org.manage_members' },
 ];
 
 export default function OpsDashboard() {
   const { data: org, isLoading: orgLoading } = useOrganisation();
   const { can } = usePermissions();
-  const visibleNavItems = NAV_ITEMS.filter((item) => isModuleEnabled(org?.enabled_modules, item.moduleKey));
-  const visibleAdminItems = ADMIN_NAV_ITEMS.filter((item) => can(item.permission));
+  const industryConfig = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'];
+  const visibleNavItems = NAV_ITEMS
+    .filter((item) => isModuleEnabled(org?.enabled_modules, item.moduleKey))
+    // Stable sort: priority modules for this industry float to the top,
+    // in the order the config lists them; everything else keeps its
+    // original relative order after that. This is the concrete effect
+    // of industry_mode on the dashboard — not just a badge.
+    .sort((a, b) => {
+      const ai = industryConfig.priorityModules.indexOf(a.moduleKey);
+      const bi = industryConfig.priorityModules.indexOf(b.moduleKey);
+      const aRank = ai === -1 ? industryConfig.priorityModules.length : ai;
+      const bRank = bi === -1 ? industryConfig.priorityModules.length : bi;
+      return aRank - bRank;
+    });
+  const visibleAdminItems = ADMIN_NAV_ITEMS
+    .filter((item) => can(item.permission))
+    .map((item) =>
+      item.to === '/ops/admin/assets'
+        ? {
+            ...item,
+            label: `${industryConfig.assetLabelPlural} Registry`,
+            description: `Sites, business units, ${industryConfig.assetLabelSingular.toLowerCase()} types, ${industryConfig.assetLabelPlural.toLowerCase()}`,
+          }
+        : item
+    );
   const { data: items, isLoading: itemsLoading } = useInventoryItems();
   const { data: expiringDocs, isLoading: docsLoading } = useExpiringDocuments();
   const { data: openIncidents, isLoading: incidentsLoading } = useIncidents('reported');
@@ -86,6 +106,7 @@ export default function OpsDashboard() {
           )}
         </p>
         <h1 className="font-heading font-bold text-2xl">Operations Control</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{industryConfig.tagline}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-6">

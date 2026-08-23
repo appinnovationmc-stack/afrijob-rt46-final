@@ -304,6 +304,18 @@ export function useAssetWorkOrders(assetId: string | undefined) {
   });
 }
 
+const INCIDENT_STATUSES: readonly IncidentStatus[] = ['reported', 'investigating', 'resolved', 'closed'];
+
+// incidents.status is unconstrained text in the DB (no CHECK constraint,
+// no enum) — Supabase's generated types correctly type it as `string`, so
+// this narrows it to the app's IncidentStatus union at the read boundary
+// instead of casting past a real mismatch. Unrecognised values fall back
+// to 'reported' rather than crashing the Asset 360 Incidents tab, since
+// this is read-only display data.
+function toIncidentStatus(raw: string): IncidentStatus {
+  return (INCIDENT_STATUSES as readonly string[]).includes(raw) ? (raw as IncidentStatus) : 'reported';
+}
+
 export function useAssetIncidents(assetId: string | undefined) {
   return useQuery({
     queryKey: ['ops', 'asset-incidents', assetId],
@@ -315,7 +327,7 @@ export function useAssetIncidents(assetId: string | undefined) {
         .eq('asset_id', assetId!)
         .order('occurred_at', { ascending: false });
       if (error) throw error;
-      return data;
+      return data.map((row) => ({ ...row, status: toIncidentStatus(row.status) }));
     },
   });
 }

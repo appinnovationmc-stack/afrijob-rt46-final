@@ -6,6 +6,7 @@ import {
   isOverdue, daysUntilDue, TRIGGER_TYPE_LABELS,
 } from '@/hooks/useMaintenanceSchedules';
 import { useAssetOptions } from '@/hooks/useAssetSitePickers';
+import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FAB } from '@/components/ui/FAB';
@@ -18,6 +19,8 @@ const TRIGGER_TYPES: MaintenanceTriggerType[] = ['interval_days', 'interval_hour
 function NewScheduleModal({ onClose }: { onClose: () => void }) {
   const create = useCreateMaintenanceSchedule();
   const { data: assets, isLoading: assetsLoading } = useAssetOptions();
+  const { data: org } = useOrganisation();
+  const industryConfig = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'];
   const push = useToastStore((s) => s.push);
   const [form, setForm] = useState({ asset_id: '', name: '', trigger_type: 'interval_days' as MaintenanceTriggerType, interval_value: '', fixed_date: '' });
 
@@ -38,7 +41,7 @@ function NewScheduleModal({ onClose }: { onClose: () => void }) {
               {assets.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
             </select>
           ) : (
-            <input className="input" placeholder="Asset ID (UUID) — no assets found to pick from" value={form.asset_id} onChange={(e) => setForm({ ...form, asset_id: e.target.value })} />
+            <input className="input" placeholder={`${industryConfig.assetLabelSingular} ID (UUID) — none found to pick from`} value={form.asset_id} onChange={(e) => setForm({ ...form, asset_id: e.target.value })} />
           )}
           <select className="input" value={form.trigger_type} onChange={(e) => setForm({ ...form, trigger_type: e.target.value as MaintenanceTriggerType })}>
             {TRIGGER_TYPES.map((t) => <option key={t} value={t}>{TRIGGER_TYPE_LABELS[t]}</option>)}

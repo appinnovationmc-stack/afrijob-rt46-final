@@ -1,40 +1,24 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Package } from 'lucide-react';
+import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge } from 'lucide-react';
 import {
   useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments,
 } from '@/hooks/useAssetRegistry';
-import { useAssetParts } from '@/hooks/useWorkOrderParts';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
-import {
-  ComplianceStatusChip, EnumStatusChip,
-  ASSET_STATUS_STYLES, ASSET_STATUS_LABELS,
-  WORK_ORDER_STATUS_STYLES, WORK_ORDER_STATUS_LABELS,
-  INCIDENT_STATUS_STYLES, INCIDENT_STATUS_LABELS,
-} from '@/components/ui/StatusChip';
+import { ComplianceStatusChip } from '@/components/ui/StatusChip';
 import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
+import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 
-type Tab = 'overview' | 'work-orders' | 'maintenance' | 'incidents' | 'documents' | 'parts';
+type Tab = 'overview' | 'work-orders' | 'maintenance' | 'incidents' | 'documents';
 
 const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'overview', label: 'Overview', icon: Gauge },
   { id: 'work-orders', label: 'Work Orders', icon: Wrench },
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
-  { id: 'parts', label: 'Parts', icon: Package },
   { id: 'documents', label: 'Documents', icon: FileText },
 ];
-
-// PART_SOURCE_LABELS mirrors SOURCE_LABELS below, same honesty-about-origin
-// reasoning: a part logged through the legacy per-job form and a stock
-// movement issued through the Ops inventory module are still two different
-// recording paths under the hood (see work_order_parts_unified), even
-// though this tab shows them as one history.
-const PART_SOURCE_LABELS: Record<string, string> = {
-  job_parts: 'Logged on job',
-  inventory_movements: 'Issued from stock',
-};
 
 // SOURCE_LABELS makes work_orders.source_system readable — 'afrijob' is the
 // legacy per-workshop job-card flow, 'rt46' is the government programme,
@@ -47,13 +31,14 @@ const SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriJob', rt46: 'RT46'
 export default function AssetDetail() {
   const { assetId } = useParams<{ assetId: string }>();
   const [tab, setTab] = useState<Tab>('overview');
+  const { data: org } = useOrganisation();
+  const industryConfig = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'];
 
   const { data: asset, isLoading: assetLoading } = useAsset(assetId);
   const { data: workOrders } = useAssetWorkOrders(assetId);
   const { data: incidents } = useAssetIncidents(assetId);
   const { data: maintenance } = useAssetMaintenanceSchedules(assetId);
   const { data: documents } = useAssetDocuments(assetId);
-  const { data: parts } = useAssetParts(assetId);
 
   if (assetLoading) {
     return (
@@ -66,7 +51,7 @@ export default function AssetDetail() {
   if (!asset) {
     return (
       <div className="px-4 pt-6 pb-24">
-        <EmptyState icon={Gauge} title="Asset not found" description="This asset may have been removed, or you don't have access to it." />
+        <EmptyState icon={Gauge} title={`${industryConfig.assetLabelSingular} not found`} description="This may have been removed, or you don't have access to it." />
       </div>
     );
   }
@@ -76,12 +61,12 @@ export default function AssetDetail() {
   const overdueMaintenance = (maintenance ?? []).filter((m) => m.active && m.next_due_at && new Date(m.next_due_at) < new Date());
   const openIncidents = (incidents ?? []).filter((i) => i.status !== 'resolved' && i.status !== 'closed');
 
-  const title = [asset.manufacturer, asset.model].filter(Boolean).join(' ') || asset.asset_number || 'Asset';
+  const title = [asset.manufacturer, asset.model].filter(Boolean).join(' ') || asset.asset_number || industryConfig.assetLabelSingular;
 
   return (
     <div className="px-4 pt-6 pb-24">
       <Link to="/ops/admin/assets" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
-        <ArrowLeft className="w-4 h-4" /> Assets
+        <ArrowLeft className="w-4 h-4" /> {industryConfig.assetLabelPlural}
       </Link>
 
       <div className="flex items-start justify-between mb-1">
@@ -93,7 +78,7 @@ export default function AssetDetail() {
             {asset.year && <span> · {asset.year}</span>}
           </p>
         </div>
-        <EnumStatusChip status={asset.status} styles={ASSET_STATUS_STYLES} labels={ASSET_STATUS_LABELS} />
+        <ComplianceStatusChip status={asset.status} />
       </div>
 
       {/* At-a-glance row — the "what needs attention right now" summary,
@@ -157,7 +142,7 @@ export default function AssetDetail() {
               <div key={w.id} className="card !py-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-medium text-sm flex-1">{w.description || w.category}</p>
-                  <EnumStatusChip status={w.status} styles={WORK_ORDER_STATUS_STYLES} labels={WORK_ORDER_STATUS_LABELS} />
+                  <ComplianceStatusChip status={w.status} />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {SOURCE_LABELS[w.source_system ?? ''] ?? w.source_system} · {w.category} · {w.priority} priority
@@ -205,35 +190,10 @@ export default function AssetDetail() {
               <div key={i.id} className="card !py-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-medium text-sm flex-1">{i.category}</p>
-                  <EnumStatusChip status={i.status} styles={INCIDENT_STATUS_STYLES} labels={INCIDENT_STATUS_LABELS} />
+                  <ComplianceStatusChip status={i.status} />
                 </div>
                 {i.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{i.description}</p>}
                 <p className="text-xs text-gray-400 mt-0.5">{i.severity} severity · {formatDate(i.occurred_at)}</p>
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {tab === 'parts' && (
-        (parts ?? []).length === 0 ? (
-          <EmptyState icon={Package} title="No parts recorded" description="No parts have been logged or issued against this asset yet." />
-        ) : (
-          <div className="space-y-2">
-            <div className="card !py-3 flex items-center justify-between text-sm font-semibold">
-              <span>Parts total</span>
-              <span>{formatCurrencyZAR(parts!.reduce((sum, p) => sum + p.line_total, 0))}</span>
-            </div>
-            {parts!.map((p) => (
-              <div key={`${p.source}-${p.id}`} className="card !py-3">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="font-medium text-sm flex-1">{p.description}</p>
-                  <p className="font-semibold text-sm">{formatCurrencyZAR(p.line_total)}</p>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {PART_SOURCE_LABELS[p.source] ?? p.source} · {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">{formatDate(p.created_at)}</p>
               </div>
             ))}
           </div>

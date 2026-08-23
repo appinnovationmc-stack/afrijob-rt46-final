@@ -5,7 +5,8 @@ import {
   useSites, useCreateSite, useBusinessUnits, useCreateBusinessUnit,
   useAssetTypes, useCreateAssetType, useAssets, useCreateAsset,
 } from '@/hooks/useAssetRegistry';
-import { usePermissions } from '@/hooks/useOrganisation';
+import { usePermissions, useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
+import type { IndustryConfig } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToastStore } from '@/components/ui/Toast';
@@ -204,7 +205,7 @@ function AssetTypesTab({ canManage }: { canManage: boolean }) {
 
 const METER_TYPES = ['odometer', 'hours', 'none'] as const;
 
-function AssetsTab() {
+function AssetsTab({ assetLabel }: { assetLabel: IndustryConfig }) {
   const { data: assets, isLoading } = useAssets();
   const { data: sites } = useSites();
   const { data: types } = useAssetTypes();
@@ -219,18 +220,22 @@ function AssetsTab() {
   return (
     <div>
       <button className="btn-primary w-full mb-4 text-sm" onClick={() => setShowNew(true)}>
-        + New asset
+        + New {assetLabel.assetLabelSingular.toLowerCase()}
       </button>
       {isLoading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <SkeletonCard key={i} />)}</div>
       ) : !assets?.length ? (
-        <EmptyState icon={Car} title="No assets yet" description="Add vehicles or equipment to start tracking maintenance, incidents, and documents against them." />
+        <EmptyState
+          icon={Car}
+          title={`No ${assetLabel.assetLabelPlural.toLowerCase()} yet`}
+          description={`Add ${assetLabel.assetLabelPlural.toLowerCase()} to start tracking maintenance, incidents, and documents against them.`}
+        />
       ) : (
         <div className="space-y-3">
           {assets.map((a) => (
             <Link key={a.id} to={`/ops/admin/assets/${a.id}`} className="card block active:scale-[0.98] transition-transform">
               <p className="font-semibold text-sm">
-                {a.asset_number ?? a.registration ?? [a.manufacturer, a.model].filter(Boolean).join(' ') ?? 'Unnamed asset'}
+                {a.asset_number ?? a.registration ?? [a.manufacturer, a.model].filter(Boolean).join(' ') ?? `Unnamed ${assetLabel.assetLabelSingular.toLowerCase()}`}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {[a.manufacturer, a.model, a.year].filter(Boolean).join(' ')} · {a.meter_type} · {a.status}
@@ -240,9 +245,9 @@ function AssetsTab() {
         </div>
       )}
       {showNew && (
-        <Modal title="New asset" onClose={() => setShowNew(false)}>
+        <Modal title={`New ${assetLabel.assetLabelSingular.toLowerCase()}`} onClose={() => setShowNew(false)}>
           <div className="space-y-3">
-            <input className="input" placeholder="Asset number (internal ID)" value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
+            <input className="input" placeholder={`${assetLabel.assetLabelSingular} number (internal ID)`} value={form.asset_number} onChange={(e) => setForm({ ...form, asset_number: e.target.value })} />
             <input className="input" placeholder="Registration (if a vehicle)" value={form.registration} onChange={(e) => setForm({ ...form, registration: e.target.value })} />
             <div className="grid grid-cols-2 gap-3">
               <input className="input" placeholder="Manufacturer" value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} />
@@ -282,7 +287,7 @@ function AssetsTab() {
                   site_id: form.site_id || undefined,
                   asset_type_id: form.asset_type_id || undefined,
                 });
-                push('Asset added', 'success');
+                push(`${assetLabel.assetLabelSingular} added`, 'success');
                 setShowNew(false);
                 setForm({ asset_number: '', registration: '', manufacturer: '', model: '', year: '', meter_type: 'odometer', site_id: '', asset_type_id: '' });
               } catch (e: any) {
@@ -301,6 +306,8 @@ function AssetsTab() {
 export default function AssetRegistry() {
   const [tab, setTab] = useState<Tab>('assets');
   const { can } = usePermissions();
+  const { data: org } = useOrganisation();
+  const industryConfig = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'];
   // sites/business_units/asset_types require org_admin at the RLS level;
   // assets themselves only require org membership — mirrored here so the
   // "+ New" button only appears where the write would actually succeed.
@@ -308,9 +315,9 @@ export default function AssetRegistry() {
 
   return (
     <div className="px-4 pt-6 pb-24">
-      <h1 className="font-heading font-bold text-2xl mb-1">Asset Registry</h1>
+      <h1 className="font-heading font-bold text-2xl mb-1">{industryConfig.assetLabelPlural} Registry</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Sites, business units, asset types and assets — the foundational data every other Ops module builds on.
+        Sites, business units, {industryConfig.assetLabelSingular.toLowerCase()} types and {industryConfig.assetLabelPlural.toLowerCase()} — the foundational data every other Ops module builds on.
       </p>
 
       <div className="flex gap-1.5 mb-5 overflow-x-auto">
@@ -323,7 +330,10 @@ export default function AssetRegistry() {
             )}
             onClick={() => setTab(id)}
           >
-            <Icon className="w-3.5 h-3.5" /> {label}
+            <Icon className="w-3.5 h-3.5" />{' '}
+            {id === 'assets' ? industryConfig.assetLabelPlural
+              : id === 'asset-types' ? `${industryConfig.assetLabelSingular} Types`
+              : label}
           </button>
         ))}
       </div>
@@ -331,7 +341,7 @@ export default function AssetRegistry() {
       {tab === 'sites' && <SitesTab canManage={canManageStructure} />}
       {tab === 'business-units' && <BusinessUnitsTab canManage={canManageStructure} />}
       {tab === 'asset-types' && <AssetTypesTab canManage={canManageStructure} />}
-      {tab === 'assets' && <AssetsTab />}
+      {tab === 'assets' && <AssetsTab assetLabel={industryConfig} />}
     </div>
   );
 }

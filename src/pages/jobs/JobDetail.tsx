@@ -138,7 +138,7 @@ export default function JobDetail() {
           </div>
         ) : (
           <>
-            <PartsAndLabour jobId={job.id} labourHours={job.labour_hours} />
+            <PartsAndLabour jobId={job.id} workOrderId={job.generic_work_order_id} labourHours={job.labour_hours} />
             <SignaturePad jobId={job.id} existingUrl={job.customer_signature_url} />
             <JobReportButton job={job} />
           </>
