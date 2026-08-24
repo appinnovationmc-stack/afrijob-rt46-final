@@ -33,6 +33,7 @@ import Incidents from '@/pages/ops/Incidents';
 import MaintenanceSchedules from '@/pages/ops/MaintenanceSchedules';
 import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
+import OperationalIntelligence from '@/pages/ops/OperationalIntelligence';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import OrgSettings from '@/pages/ops/admin/OrgSettings';
@@ -46,11 +47,7 @@ import AssetDetail from '@/pages/ops/admin/AssetDetail';
 import AcceptInvite, { getPendingInviteToken } from '@/pages/auth/AcceptInvite';
 import { useAcceptInvitation } from '@/hooks/useTeam';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
-  },
-});
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthStore();
@@ -60,19 +57,9 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>;
 }
 
-// Split out from App so every hook here (useAcceptInvitation in
-// particular, which calls useMutation internally) runs *inside*
-// QueryClientProvider rather than during App's own render, before the
-// provider exists. Calling a react-query hook before its provider is
-// mounted throws immediately on render — with no error boundary in this
-// app, that showed up as a blank white screen with no visible error.
 function AppContent() {
   const init = useAuthStore((s) => s.init);
   const profile = useAuthStore((s) => s.profile);
@@ -85,105 +72,58 @@ function AppContent() {
     return () => cleanup?.();
   }, [init]);
 
-  // Picks up a workshop name stashed by SignUp when email confirmation was
-  // required (no session was available at signup time to satisfy the RLS
-  // insert check) — creates it the first time we see an authenticated
-  // profile with no workshops yet. Also picks up a pending invite token
-  // stashed by AcceptInvite.tsx for the same reason (signup needed to
-  // happen first) so the person doesn't have to reopen the invite link.
   useEffect(() => {
     if (!profile?.id) return;
     const pendingInviteToken = getPendingInviteToken();
-    if (pendingInviteToken) {
-      acceptInvitation.mutate(pendingInviteToken, {
-        onSettled: () => localStorage.removeItem('afrijob:pending-invite-token'),
-      });
-    }
+    if (pendingInviteToken) acceptInvitation.mutate(pendingInviteToken, { onSettled: () => localStorage.removeItem('afrijob:pending-invite-token') });
     const pendingName = localStorage.getItem('afrijob:pending-workshop-name');
-    if (!pendingName) {
-      loadWorkshops(profile.id);
-      return;
-    }
+    if (!pendingName) { loadWorkshops(profile.id); return; }
     (async () => {
-      try {
-        await createOrganisationAndWorkshop(supabase, profile.id, pendingName);
-      } catch (error) {
-        console.error('Failed to create pending workshop', error);
-      }
+      try { await createOrganisationAndWorkshop(supabase, profile.id, pendingName); }
+      catch (error) { console.error('Failed to create pending workshop', error); }
       localStorage.removeItem('afrijob:pending-workshop-name');
       await loadWorkshops(profile.id);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id, loadWorkshops]);
 
-  return (
-    <>
-      <ToastViewport />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/accept-invite" element={<AcceptInvite />} />
-          <Route
-            element={
-              <RequireAuth>
-                <AppShell />
-              </RequireAuth>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/jobs" element={<JobList />} />
-            <Route path="/jobs/new" element={<NewJob />} />
-            <Route path="/jobs/:jobId" element={<JobDetail />} />
-            <Route path="/compliance" element={<ComplianceVault />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/rt46" element={<Rt46AdminGuard />}>
-              <Route index element={<Rt46Dashboard />} />
-              <Route path="merchants" element={<Rt46Merchants />} />
-              <Route path="work-orders" element={<Rt46WorkOrders />} />
-              <Route path="fraud-flags" element={<Rt46FraudFlags />} />
-              <Route path="compliance" element={<Rt46Compliance />} />
-              <Route path="quality" element={<Rt46Quality />} />
-            </Route>
-            <Route path="/ops" element={<OpsDashboard />} />
-            <Route element={<ModuleGuard moduleKey="inventory" />}>
-              <Route path="/ops/inventory" element={<Inventory />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="procurement" />}>
-              <Route path="/ops/procurement" element={<Procurement />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="documents" />}>
-              <Route path="/ops/documents" element={<DocumentVault />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="incidents" />}>
-              <Route path="/ops/incidents" element={<Incidents />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="maintenance" />}>
-              <Route path="/ops/maintenance" element={<MaintenanceSchedules />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="sla" />}>
-              <Route path="/ops/sla" element={<SlaDashboard />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="notifications" />}>
-              <Route path="/ops/notifications" element={<OpsNotifications />} />
-            </Route>
-            {/* work_orders is deliberately ungated — cross-source view, always shown regardless of enabled_modules (see OpsDashboard NAV_ITEMS comment) */}
-            <Route path="/ops/work-orders" element={<WorkOrderList />} />
-            <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
-            <Route path="/ops/admin/assets" element={<AssetRegistry />} />
-            <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
-            <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
-            <Route path="/ops/admin/settings" element={<OrgSettings />} />
-            <Route path="/ops/admin/billing" element={<Billing />} />
-            <Route path="/ops/admin/api-keys" element={<ApiKeys />} />
-            <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
-            <Route path="/ops/admin/team" element={<Team />} />
-            <Route path="/ops/admin/audit" element={<AuditLog />} />
-            <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
+  return <>
+    <ToastViewport />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route element={<RequireAuth><AppShell /></RequireAuth>}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/jobs" element={<JobList />} />
+          <Route path="/jobs/new" element={<NewJob />} />
+          <Route path="/jobs/:jobId" element={<JobDetail />} />
+          <Route path="/compliance" element={<ComplianceVault />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/rt46" element={<Rt46AdminGuard />}>
+            <Route index element={<Rt46Dashboard />} /><Route path="merchants" element={<Rt46Merchants />} />
+            <Route path="work-orders" element={<Rt46WorkOrders />} /><Route path="fraud-flags" element={<Rt46FraudFlags />} />
+            <Route path="compliance" element={<Rt46Compliance />} /><Route path="quality" element={<Rt46Quality />} />
           </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </>
-  );
+          <Route path="/ops" element={<OpsDashboard />} />
+          <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
+          <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
+          <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>
+          <Route element={<ModuleGuard moduleKey="incidents" />}><Route path="/ops/incidents" element={<Incidents />} /></Route>
+          <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
+          <Route element={<ModuleGuard moduleKey="sla" />}><Route path="/ops/sla" element={<SlaDashboard />} /></Route>
+          <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
+          <Route path="/ops/work-orders" element={<WorkOrderList />} /><Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
+          <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
+          <Route path="/ops/admin/assets" element={<AssetRegistry />} /><Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
+          <Route path="/ops/admin/service-providers" element={<ServiceProviders />} /><Route path="/ops/admin/settings" element={<OrgSettings />} />
+          <Route path="/ops/admin/billing" element={<Billing />} /><Route path="/ops/admin/api-keys" element={<ApiKeys />} />
+          <Route path="/ops/admin/permissions" element={<PermissionMatrix />} /><Route path="/ops/admin/team" element={<Team />} />
+          <Route path="/ops/admin/audit" element={<AuditLog />} /><Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  </>;
 }
