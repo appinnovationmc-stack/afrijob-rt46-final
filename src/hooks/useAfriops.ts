@@ -59,6 +59,14 @@ export function useRecordInventoryMovement() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['ops', 'inventory'] });
       qc.invalidateQueries({ queryKey: ['ops', 'inventory-movements', vars.inventory_item_id] });
+      // A movement issued against a work order also feeds
+      // work_order_parts_unified — refresh that view's read hooks too,
+      // otherwise WorkOrderDetail's Parts list and Asset 360's Parts tab
+      // go stale until an unrelated refetch happens.
+      if (vars.work_order_id) {
+        qc.invalidateQueries({ queryKey: ['work-order-parts-unified', vars.work_order_id] });
+        qc.invalidateQueries({ queryKey: ['asset-parts-unified'] });
+      }
     },
   });
 }

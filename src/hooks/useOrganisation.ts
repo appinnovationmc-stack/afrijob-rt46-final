@@ -16,19 +16,32 @@ export const INDUSTRY_LABELS: Record<IndustryMode, string> = {
 };
 
 // Real config, not decoration: this is what makes industry_mode actually
-// change the product rather than just showing a badge. Two things it
-// drives right now — asset terminology (a mining "asset" is Equipment,
-// a fleet one is a Vehicle) and which Ops modules are surfaced first on
-// the dashboard. priorityModules values must match the moduleKey strings
-// used in OpsDashboard's NAV_ITEMS — cross-checked against that file
-// rather than invented. Orderings follow the worked examples in the
-// AfriOps platform spec (Mining/Fleet/Municipal/Government/Logistics
-// module priorities), not a guess.
+// change the product rather than just showing a badge. It drives asset
+// terminology, which Ops modules are surfaced first on the dashboard,
+// and — as of this pass — which KPI tiles the dashboard leads with.
+// priorityModules values must match the moduleKey strings used in
+// OpsDashboard's NAV_ITEMS, and kpiOrder values must match the `key`
+// fields in OpsDashboard's KPI_DEFINITIONS — both cross-checked against
+// that file rather than invented.
 export interface IndustryConfig {
   assetLabelSingular: string;
   assetLabelPlural: string;
   tagline: string;
   priorityModules: string[];
+  kpiOrder: string[];
+  // Overrides for work_order_category display text, keyed by the DB enum
+  // value (breakdown/maintenance/inspection/repair/service/incident/other).
+  // Deliberately Partial: this only relabels how a category reads for this
+  // industry — the underlying enum value, and therefore every query,
+  // filter, and RLS policy built on it, is completely unchanged. Any
+  // category not listed here falls back to WORK_ORDER_CATEGORY_LABELS'
+  // default text via getCategoryLabel() in useWorkOrders.ts.
+  categoryLabels?: Partial<Record<string, string>>;
+  // Suggested asset_types.category values to seed/surface first when an
+  // org in this industry sets up its Asset Registry. Matched against the
+  // free-text `category` column on asset_types (see AssetRegistry.tsx) —
+  // not an enum, so this is guidance for the UI, not a constraint.
+  suggestedAssetCategories: string[];
 }
 
 export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
@@ -37,36 +50,83 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
     assetLabelPlural: 'Assets',
     tagline: 'Operations overview',
     priorityModules: [],
+    kpiOrder: ['open_work_orders', 'sla_breaches', 'maintenance_due', 'open_incidents'],
+    suggestedAssetCategories: ['Equipment', 'Vehicle', 'Facility', 'Other'],
   },
   mining: {
     assetLabelSingular: 'Equipment',
     assetLabelPlural: 'Equipment',
     tagline: 'Mobile equipment, safety and site maintenance',
     priorityModules: ['maintenance', 'incidents', 'inventory', 'procurement', 'documents'],
+    kpiOrder: ['open_incidents', 'maintenance_due', 'open_work_orders', 'low_stock'],
+    categoryLabels: {
+      breakdown: 'Breakdown',
+      incident: 'Safety Incident',
+      inspection: 'Site Inspection',
+      maintenance: 'Scheduled Maintenance',
+      repair: 'Repair',
+    },
+    suggestedAssetCategories: ['Heavy/Mobile Equipment', 'Drilling Equipment', 'Loader', 'Excavator', 'Haul Truck'],
   },
   fleet: {
     assetLabelSingular: 'Vehicle',
     assetLabelPlural: 'Vehicles',
     tagline: 'Vehicles, maintenance and parts',
     priorityModules: ['maintenance', 'inventory', 'procurement', 'documents', 'sla'],
+    kpiOrder: ['maintenance_due', 'open_work_orders', 'low_stock', 'sla_breaches'],
+    categoryLabels: {
+      breakdown: 'Breakdown',
+      incident: 'Accident',
+      inspection: 'Vehicle Inspection',
+      maintenance: 'Service',
+      repair: 'Repair',
+    },
+    suggestedAssetCategories: ['Light Vehicle', 'Heavy Vehicle', 'Trailer', 'Motorcycle'],
   },
   municipal: {
     assetLabelSingular: 'Asset',
     assetLabelPlural: 'Assets',
     tagline: 'Service requests, work and SLA performance',
     priorityModules: ['sla', 'incidents', 'procurement', 'documents', 'maintenance'],
+    kpiOrder: ['sla_breaches', 'open_work_orders', 'open_incidents', 'maintenance_due'],
+    categoryLabels: {
+      breakdown: 'Service Request',
+      incident: 'Public Incident',
+      inspection: 'Compliance Inspection',
+      maintenance: 'Scheduled Maintenance',
+      repair: 'Repair',
+    },
+    suggestedAssetCategories: ['Road/Infrastructure', 'Facility', 'Municipal Vehicle', 'Public Utility'],
   },
   government: {
     assetLabelSingular: 'Asset',
     assetLabelPlural: 'Assets',
     tagline: 'Procurement, compliance and SLA performance',
     priorityModules: ['procurement', 'documents', 'sla', 'incidents', 'maintenance'],
+    kpiOrder: ['sla_breaches', 'expiring_documents', 'open_work_orders', 'open_incidents'],
+    categoryLabels: {
+      breakdown: 'Service Request',
+      incident: 'Reportable Incident',
+      inspection: 'Compliance Inspection',
+      maintenance: 'Scheduled Maintenance',
+      repair: 'Repair',
+    },
+    suggestedAssetCategories: ['Government Vehicle', 'Facility', 'IT Equipment', 'Other'],
   },
   logistics: {
     assetLabelSingular: 'Vehicle',
     assetLabelPlural: 'Vehicles',
     tagline: 'Routes, maintenance and incidents',
     priorityModules: ['maintenance', 'incidents', 'procurement', 'documents', 'inventory'],
+    kpiOrder: ['open_incidents', 'open_work_orders', 'maintenance_due', 'low_stock'],
+    categoryLabels: {
+      breakdown: 'Breakdown',
+      incident: 'Route Incident',
+      inspection: 'Pre-Trip Inspection',
+      maintenance: 'Service',
+      repair: 'Repair',
+    },
+    suggestedAssetCategories: ['Truck', 'Trailer', 'Delivery Vehicle'],
   },
 };
 

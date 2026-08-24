@@ -143,7 +143,7 @@ function BusinessUnitsTab({ canManage }: { canManage: boolean }) {
   );
 }
 
-function AssetTypesTab({ canManage }: { canManage: boolean }) {
+function AssetTypesTab({ canManage, industryConfig }: { canManage: boolean; industryConfig: IndustryConfig }) {
   const { data: types, isLoading } = useAssetTypes();
   const create = useCreateAssetType();
   const push = useToastStore((s) => s.push);
@@ -179,7 +179,18 @@ function AssetTypesTab({ canManage }: { canManage: boolean }) {
           <div className="space-y-3">
             <input className="input" placeholder="Label (e.g. Excavator)" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
             <input className="input" placeholder="Code (e.g. excavator)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-            <input className="input" placeholder="Category (e.g. heavy_equipment)" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+            <input
+              className="input"
+              list="asset-type-category-suggestions"
+              placeholder="Category (e.g. heavy_equipment)"
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            />
+            {/* Suggestions only — category stays free text on asset_types,
+                so nothing here constrains what an org can actually type. */}
+            <datalist id="asset-type-category-suggestions">
+              {industryConfig.suggestedAssetCategories.map((c) => <option key={c} value={c} />)}
+            </datalist>
           </div>
           <button
             className="btn-primary w-full mt-4"
@@ -340,7 +351,7 @@ export default function AssetRegistry() {
 
       {tab === 'sites' && <SitesTab canManage={canManageStructure} />}
       {tab === 'business-units' && <BusinessUnitsTab canManage={canManageStructure} />}
-      {tab === 'asset-types' && <AssetTypesTab canManage={canManageStructure} />}
+      {tab === 'asset-types' && <AssetTypesTab canManage={canManageStructure} industryConfig={industryConfig} />}
       {tab === 'assets' && <AssetsTab assetLabel={industryConfig} />}
     </div>
   );

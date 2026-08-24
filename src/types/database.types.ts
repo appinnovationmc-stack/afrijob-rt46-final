@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.15"
   }
@@ -145,6 +147,63 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_profile_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json
+          organisation_id: string
+          severity: string
+        }
+        Insert: {
+          action: string
+          actor_profile_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json
+          organisation_id: string
+          severity?: string
+        }
+        Update: {
+          action?: string
+          actor_profile_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json
+          organisation_id?: string
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_accounts: {
         Row: {
           created_at: string
@@ -227,60 +286,6 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "business_units"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      organisation_invitations: {
-        Row: {
-          accepted_at: string | null
-          created_at: string
-          email: string
-          expires_at: string
-          id: string
-          invited_by: string
-          organisation_id: string
-          role: Database["public"]["Enums"]["organisation_role"]
-          status: string
-          token: string
-        }
-        Insert: {
-          accepted_at?: string | null
-          created_at?: string
-          email: string
-          expires_at?: string
-          id?: string
-          invited_by: string
-          organisation_id: string
-          role?: Database["public"]["Enums"]["organisation_role"]
-          status?: string
-          token?: string
-        }
-        Update: {
-          accepted_at?: string | null
-          created_at?: string
-          email?: string
-          expires_at?: string
-          id?: string
-          invited_by?: string
-          organisation_id?: string
-          role?: Database["public"]["Enums"]["organisation_role"]
-          status?: string
-          token?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organisation_invitations_invited_by_fkey"
-            columns: ["invited_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "organisation_invitations_organisation_id_fkey"
-            columns: ["organisation_id"]
-            isOneToOne: false
-            referencedRelation: "organisations"
             referencedColumns: ["id"]
           },
         ]
@@ -583,7 +588,9 @@ export type Database = {
           movement_type: string
           note: string | null
           organisation_id: string
+          purchase_order_item_id: string | null
           quantity: number
+          source_job_part_id: string | null
           unit_cost: number | null
           work_order_id: string | null
         }
@@ -595,7 +602,9 @@ export type Database = {
           movement_type: string
           note?: string | null
           organisation_id: string
+          purchase_order_item_id?: string | null
           quantity: number
+          source_job_part_id?: string | null
           unit_cost?: number | null
           work_order_id?: string | null
         }
@@ -607,7 +616,9 @@ export type Database = {
           movement_type?: string
           note?: string | null
           organisation_id?: string
+          purchase_order_item_id?: string | null
           quantity?: number
+          source_job_part_id?: string | null
           unit_cost?: number | null
           work_order_id?: string | null
         }
@@ -631,6 +642,20 @@ export type Database = {
             columns: ["organisation_id"]
             isOneToOne: false
             referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_purchase_order_item_id_fkey"
+            columns: ["purchase_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_source_job_part_id_fkey"
+            columns: ["source_job_part_id"]
+            isOneToOne: false
+            referencedRelation: "job_parts"
             referencedColumns: ["id"]
           },
           {
@@ -672,17 +697,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "job_parts_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "job_parts_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_parts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -1143,6 +1168,60 @@ export type Database = {
           },
         ]
       }
+      organisation_invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          organisation_id: string
+          role: Database["public"]["Enums"]["organisation_role"]
+          status: string
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          organisation_id: string
+          role?: Database["public"]["Enums"]["organisation_role"]
+          status?: string
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          organisation_id?: string
+          role?: Database["public"]["Enums"]["organisation_role"]
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organisation_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organisation_invitations_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organisation_members: {
         Row: {
           created_at: string
@@ -1319,6 +1398,13 @@ export type Database = {
             foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
+            referencedRelation: "inventory_item_supplier_history"
+            referencedColumns: ["purchase_order_id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
             referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
@@ -1395,6 +1481,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "sites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_supplier_history"
+            referencedColumns: ["supplier_id"]
           },
           {
             foreignKeyName: "purchase_orders_supplier_id_fkey"
@@ -2074,25 +2167,62 @@ export type Database = {
       }
     }
     Views: {
+      inventory_item_supplier_history: {
+        Row: {
+          inventory_item_id: string | null
+          movement_id: string | null
+          organisation_id: string | null
+          purchase_order_id: string | null
+          purchase_order_status: string | null
+          quantity: number | null
+          received_at: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          unit_cost: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_order_parts_unified: {
         Row: {
-          id: string
-          source: string
-          work_order_id: string
-          organisation_id: string
           asset_id: string | null
-          job_id: string | null
-          description: string
+          created_at: string | null
+          description: string | null
+          id: string | null
           inventory_item_id: string | null
-          quantity: number
+          job_id: string | null
+          line_total: number | null
+          organisation_id: string | null
+          quantity: number | null
+          source: string | null
           unit_cost: number | null
-          line_total: number
-          created_at: string
+          work_order_id: string | null
         }
         Relationships: []
       }
     }
     Functions: {
+      accept_organisation_invitation: {
+        Args: { p_token: string }
+        Returns: {
+          organisation_id: string
+          role: Database["public"]["Enums"]["organisation_role"]
+        }[]
+      }
       approve_purchase_order: {
         Args: { p_po_id: string }
         Returns: {
@@ -2181,13 +2311,6 @@ export type Database = {
         Args: { p_organisation_id: string; p_permission_code: string }
         Returns: boolean
       }
-      accept_organisation_invitation: {
-        Args: { p_token: string }
-        Returns: {
-          organisation_id: string
-          role: Database["public"]["Enums"]["organisation_role"]
-        }[]
-      }
       is_org_admin: { Args: { p_organisation_id: string }; Returns: boolean }
       is_org_member: { Args: { p_organisation_id: string }; Returns: boolean }
       is_workshop_admin: {
@@ -2198,6 +2321,34 @@ export type Database = {
         Args: { target_workshop_id: string }
         Returns: boolean
       }
+      log_audit:
+        | {
+            Args: {
+              p_action: string
+              p_actor?: string
+              p_after?: Json
+              p_before?: Json
+              p_entity_id: string
+              p_entity_type: string
+              p_metadata?: Json
+              p_organisation_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_action: string
+              p_actor?: string
+              p_after?: Json
+              p_before?: Json
+              p_entity_id: string
+              p_entity_type: string
+              p_metadata?: Json
+              p_organisation_id: string
+              p_severity?: string
+            }
+            Returns: string
+          }
       notify: {
         Args: {
           p_body?: string

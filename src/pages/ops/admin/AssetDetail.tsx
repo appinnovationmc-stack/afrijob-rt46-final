@@ -7,7 +7,12 @@ import {
 import { useAssetParts } from '@/hooks/useWorkOrderParts';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ComplianceStatusChip } from '@/components/ui/StatusChip';
+import {
+  ComplianceStatusChip, EnumStatusChip,
+  ASSET_STATUS_STYLES, ASSET_STATUS_LABELS,
+  WORK_ORDER_STATUS_STYLES, WORK_ORDER_STATUS_LABELS,
+  INCIDENT_STATUS_STYLES, INCIDENT_STATUS_LABELS,
+} from '@/components/ui/StatusChip';
 import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
 import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 
@@ -89,7 +94,7 @@ export default function AssetDetail() {
             {asset.year && <span> · {asset.year}</span>}
           </p>
         </div>
-        <ComplianceStatusChip status={asset.status} />
+        <EnumStatusChip status={asset.status} styles={ASSET_STATUS_STYLES} labels={ASSET_STATUS_LABELS} />
       </div>
 
       {/* At-a-glance row — the "what needs attention right now" summary,
@@ -153,7 +158,7 @@ export default function AssetDetail() {
               <div key={w.id} className="card !py-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-medium text-sm flex-1">{w.description || w.category}</p>
-                  <ComplianceStatusChip status={w.status} />
+                  <EnumStatusChip status={w.status} styles={WORK_ORDER_STATUS_STYLES} labels={WORK_ORDER_STATUS_LABELS} />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {SOURCE_LABELS[w.source_system ?? ''] ?? w.source_system} · {w.category} · {w.priority} priority
@@ -178,7 +183,7 @@ export default function AssetDetail() {
                 <div>
                   <p className="font-medium">{p.description}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {PART_SOURCE_LABELS[p.source] ?? p.source} · {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'} · {formatDate(p.created_at)}
+                    {PART_SOURCE_LABELS[p.source ?? ''] ?? p.source} · {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'} · {formatDate(p.created_at)}
                   </p>
                 </div>
                 <p className="font-semibold">{p.line_total != null ? formatCurrencyZAR(p.line_total) : '—'}</p>
@@ -226,7 +231,7 @@ export default function AssetDetail() {
               <div key={i.id} className="card !py-3">
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-medium text-sm flex-1">{i.category}</p>
-                  <ComplianceStatusChip status={i.status} />
+                  <EnumStatusChip status={i.status} styles={INCIDENT_STATUS_STYLES} labels={INCIDENT_STATUS_LABELS} />
                 </div>
                 {i.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{i.description}</p>}
                 <p className="text-xs text-gray-400 mt-0.5">{i.severity} severity · {formatDate(i.occurred_at)}</p>

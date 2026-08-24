@@ -40,13 +40,20 @@ export function PartsAndLabour({
   const isLoading = workOrderId ? unified.isLoading : legacy.isLoading;
 
   const parts: DisplayPart[] = workOrderId
-    ? (unified.data ?? []).map((p) => ({
-        id: p.id,
-        name: p.description,
-        quantity: p.quantity,
-        unitCost: p.unit_cost,
-        deletable: p.source === 'job_parts',
-      }))
+    ? (unified.data ?? [])
+        // The unified view types every column as nullable (it's a view
+        // over a UNION of job_parts/inventory_movements), but a row with
+        // no id can't be rendered as a stable list item or deleted safely
+        // — in practice this never happens from either real source, so
+        // filtering it out here is a defensive guard, not data loss.
+        .filter((p) => p.id != null)
+        .map((p) => ({
+          id: p.id as string,
+          name: p.description ?? '(unnamed part)',
+          quantity: p.quantity ?? 0,
+          unitCost: p.unit_cost,
+          deletable: p.source === 'job_parts',
+        }))
     : (legacy.data ?? []).map((p) => ({
         id: p.id,
         name: p.part_name,

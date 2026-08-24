@@ -23,6 +23,8 @@ import Rt46FraudFlags from '@/pages/rt46/Rt46FraudFlags';
 import Rt46Compliance from '@/pages/rt46/Rt46Compliance';
 import Rt46Quality from '@/pages/rt46/Rt46Quality';
 import OpsDashboard from '@/pages/ops/OpsDashboard';
+import WorkOrderList from '@/pages/ops/WorkOrderList';
+import WorkOrderDetail from '@/pages/ops/WorkOrderDetail';
 import Inventory from '@/pages/ops/Inventory';
 import Procurement from '@/pages/ops/Procurement';
 import DocumentVault from '@/pages/ops/DocumentVault';
@@ -35,6 +37,7 @@ import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import OrgSettings from '@/pages/ops/admin/OrgSettings';
 import PermissionMatrix from '@/pages/ops/admin/PermissionMatrix';
 import Team from '@/pages/ops/admin/Team';
+import AuditLog from '@/pages/ops/admin/AuditLog';
 import AssetDetail from '@/pages/ops/admin/AssetDetail';
 import AcceptInvite, { getPendingInviteToken } from '@/pages/auth/AcceptInvite';
 import { useAcceptInvitation } from '@/hooks/useTeam';
@@ -146,12 +149,15 @@ function AppContent() {
             <Route path="/ops/maintenance" element={<MaintenanceSchedules />} />
             <Route path="/ops/sla" element={<SlaDashboard />} />
             <Route path="/ops/notifications" element={<OpsNotifications />} />
+            <Route path="/ops/work-orders" element={<WorkOrderList />} />
+            <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
             <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
             <Route path="/ops/admin/settings" element={<OrgSettings />} />
             <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
             <Route path="/ops/admin/team" element={<Team />} />
+            <Route path="/ops/admin/audit" element={<AuditLog />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

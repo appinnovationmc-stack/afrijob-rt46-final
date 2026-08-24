@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom';
 import {
   Boxes, ShoppingCart, FolderLock, AlertTriangle, CalendarClock, Gauge as GaugeIcon,
-  ChevronRight, Bell, PackageX, ShieldAlert, Car, Users,
+  ChevronRight, Bell, PackageX, ShieldAlert, Car, Users, Wrench, History,
 } from 'lucide-react';
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
 import { useOpenSlaBreaches } from '@/hooks/useSla';
+import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,12 @@ function Kpi({ label, value, tone = 'default', icon: Icon }: { label: string; va
   );
 }
 
+// 'work_orders' is deliberately not one of the industry-config
+// moduleKeys (it's not gated per industry_mode like the others) — it's
+// the single cross-source view over every work order (AfriJob, RT46,
+// and native Ops), so it's always shown regardless of enabled_modules.
 const NAV_ITEMS = [
+  { to: '/ops/work-orders', label: 'Work Orders', description: 'Every work order across AfriJob, RT46, and Ops', icon: Wrench, moduleKey: 'work_orders' },
   { to: '/ops/inventory', label: 'Inventory', description: 'Stock levels, movements, reorder points', icon: Boxes, moduleKey: 'inventory' },
   { to: '/ops/procurement', label: 'Procurement', description: 'Suppliers, purchase orders, receiving', icon: ShoppingCart, moduleKey: 'procurement' },
   { to: '/ops/documents', label: 'Document Vault', description: 'Compliance docs, expiry tracking, verification', icon: FolderLock, moduleKey: 'documents' },
@@ -43,6 +49,11 @@ const NAV_ITEMS = [
 const ADMIN_NAV_ITEMS = [
   { to: '/ops/admin/assets', label: 'Asset Registry', description: 'Sites, business units, asset types, assets', icon: Car, permission: 'assets.create' },
   { to: '/ops/admin/team', label: 'Team & Roles', description: 'Members and access levels', icon: Users, permission: 'org.manage_members' },
+  // Same permission the audit_log RLS policy itself checks
+  // ("org members can view audit log for their org" → org.manage_members)
+  // — the nav gate matches the actual DB-enforced boundary, not a
+  // separate client-side guess at who should see it.
+  { to: '/ops/admin/audit', label: 'Audit Log', description: 'Every recorded change across the organisation', icon: History, permission: 'org.manage_members' },
 ];
 
 export default function OpsDashboard() {
@@ -50,7 +61,7 @@ export default function OpsDashboard() {
   const { can } = usePermissions();
   const industryConfig = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'];
   const visibleNavItems = NAV_ITEMS
-    .filter((item) => isModuleEnabled(org?.enabled_modules, item.moduleKey))
+    .filter((item) => item.moduleKey === 'work_orders' || isModuleEnabled(org?.enabled_modules, item.moduleKey))
     // Stable sort: priority modules for this industry float to the top,
     // in the order the config lists them; everything else keeps its
     // original relative order after that. This is the concrete effect
@@ -78,6 +89,14 @@ export default function OpsDashboard() {
   const { data: openIncidents, isLoading: incidentsLoading } = useIncidents('reported');
   const { data: dueSchedules, isLoading: dueLoading } = useDueMaintenanceSchedules();
   const { data: breaches, isLoading: breachesLoading } = useOpenSlaBreaches();
+  // Genuinely new KPI: open (non-terminal) work orders across every
+  // source — nothing surfaced this count anywhere before today. Filtered
+  // client-side rather than via useWorkOrders(status) since "open" here
+  // means "not completed/cancelled/disputed", not a single status value.
+  const { data: allWorkOrders, isLoading: workOrdersLoading } = useWorkOrders();
+  const openWorkOrders = (allWorkOrders ?? []).filter(
+    (w) => !['completed', 'cancelled', 'disputed'].includes(w.status)
+  );
 
   if (!orgLoading && !org) {
     return (
@@ -91,8 +110,55 @@ export default function OpsDashboard() {
     );
   }
 
-  const isLoading = orgLoading || itemsLoading || docsLoading || incidentsLoading || dueLoading || breachesLoading;
+  const isLoading = orgLoading || itemsLoading || docsLoading || incidentsLoading || dueLoading || breachesLoading || workOrdersLoading;
   const lowStockCount = (items ?? []).filter(isBelowReorderPoint).length;
+
+  // Every KPI the dashboard can show, keyed to match industryConfig.kpiOrder.
+  // Which ones actually render, and in what order, is resolved below from
+  // industryConfig — this map itself doesn't decide relevance per industry.
+  const KPI_DEFINITIONS: Record<string, { label: string; value: number; tone: 'default' | 'warning' | 'danger' | 'success'; icon: React.ElementType }> = {
+    open_work_orders: {
+      label: 'Open work orders',
+      value: openWorkOrders.length,
+      tone: openWorkOrders.length > 0 ? 'warning' : 'success',
+      icon: Wrench,
+    },
+    sla_breaches: {
+      label: 'SLA breaches (open)',
+      value: breaches?.length ?? 0,
+      tone: breaches && breaches.length > 0 ? 'danger' : 'success',
+      icon: ShieldAlert,
+    },
+    maintenance_due: {
+      label: 'Maintenance due ≤7d',
+      value: dueSchedules?.length ?? 0,
+      tone: dueSchedules && dueSchedules.length > 0 ? 'warning' : 'default',
+      icon: CalendarClock,
+    },
+    open_incidents: {
+      label: 'Open incidents',
+      value: openIncidents?.length ?? 0,
+      tone: openIncidents && openIncidents.length > 0 ? 'warning' : 'success',
+      icon: AlertTriangle,
+    },
+    low_stock: {
+      label: 'Low stock items',
+      value: lowStockCount,
+      tone: lowStockCount > 0 ? 'warning' : 'default',
+      icon: PackageX,
+    },
+    expiring_documents: {
+      label: 'Docs expiring/expired',
+      value: expiringDocs?.length ?? 0,
+      tone: (expiringDocs?.length ?? 0) > 0 ? 'warning' : 'default',
+      icon: FolderLock,
+    },
+  };
+  // kpiOrder picks exactly 4 tiles (the grid is 2x2) in industry priority
+  // order; falls back to the general order for any key it doesn't list,
+  // so a new industry config that forgets a key still renders something
+  // sane instead of a blank tile.
+  const kpiKeys = (industryConfig.kpiOrder.length ? industryConfig.kpiOrder : INDUSTRY_CONFIG.general.kpiOrder).slice(0, 4);
 
   return (
     <div className="px-4 pt-6 pb-6">
@@ -113,32 +179,11 @@ export default function OpsDashboard() {
         {isLoading ? (
           [1, 2, 3, 4].map((i) => <SkeletonCard key={i} />)
         ) : (
-          <>
-            <Kpi
-              label="SLA breaches (open)"
-              value={breaches?.length ?? 0}
-              tone={breaches && breaches.length > 0 ? 'danger' : 'success'}
-              icon={ShieldAlert}
-            />
-            <Kpi
-              label="Maintenance due ≤7d"
-              value={dueSchedules?.length ?? 0}
-              tone={dueSchedules && dueSchedules.length > 0 ? 'warning' : 'default'}
-              icon={CalendarClock}
-            />
-            <Kpi
-              label="Open incidents"
-              value={openIncidents?.length ?? 0}
-              tone={openIncidents && openIncidents.length > 0 ? 'warning' : 'success'}
-              icon={AlertTriangle}
-            />
-            <Kpi
-              label="Low stock items"
-              value={lowStockCount}
-              tone={lowStockCount > 0 ? 'warning' : 'default'}
-              icon={PackageX}
-            />
-          </>
+          kpiKeys.map((key) => {
+            const def = KPI_DEFINITIONS[key];
+            if (!def) return null;
+            return <Kpi key={key} label={def.label} value={def.value} tone={def.tone} icon={def.icon} />;
+          })
         )}
       </div>
 
