@@ -83,7 +83,6 @@ function PhotoStageSection({ title, photos }: { title: string; photos: RT46Repor
       <View style={styles.photoGrid}>
         {photos.map((p) => (
           <View key={p.id} style={styles.photoCell}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={p.url} style={styles.photoImage} />
             <Text style={styles.photoCaption}>
               {formatDate(p.taken_at)} · {p.latitude.toFixed(4)}, {p.longitude.toFixed(4)}

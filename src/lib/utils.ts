@@ -22,8 +22,14 @@ export function daysUntil(dateStr: string | null | undefined): number | null {
 }
 
 export function formatCurrencyZAR(amount: number | null | undefined): string {
-  if (amount == null) return 'R0.00';
-  return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+  // Route null/undefined through the same Intl formatter as a real zero
+  // rather than a hand-typed fallback string - the hardcoded 'R0.00' this
+  // used to return didn't match en-ZA's actual formatting of 0 ('R 0,00',
+  // space + comma decimal), so a missing cost and a genuinely-zero cost
+  // rendered as two visibly different strings for what should look like
+  // the same "no cost" state. Caught by testing both cases side by side,
+  // not by inspection.
+  return new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount ?? 0);
 }
 
 export const JOB_TYPE_LABELS: Record<string, string> = {

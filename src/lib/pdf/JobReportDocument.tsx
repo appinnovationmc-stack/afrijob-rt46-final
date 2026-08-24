@@ -115,7 +115,6 @@ function PhotoStageSection({ title, photos }: { title: string; photos: JobReport
       <View style={styles.photoGrid}>
         {photos.map((p, i) => (
           <View key={i} style={styles.photoCell}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={p.url} style={styles.photoImage} />
             <Text style={styles.photoCaption}>{formatDate(p.takenAt)}</Text>
           </View>
@@ -148,7 +147,6 @@ export function JobReportDocument({
         {/* Header */}
         <View style={styles.headerRow}>
           <View style={styles.workshopBlock}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
             {workshop.logo_url && <Image src={workshop.logo_url} style={styles.logo} />}
             <View>
               <Text style={styles.workshopName}>{workshop.name}</Text>
@@ -281,7 +279,6 @@ export function JobReportDocument({
         <View style={styles.signatureRow}>
           <View style={styles.signatureBlock}>
             {signatureUrl ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
               <Image src={signatureUrl} style={styles.signatureImage} />
             ) : (
               <View style={styles.signatureLine} />
