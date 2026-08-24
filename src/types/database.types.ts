@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          name: string
+          organisation_id: string
+          revoked_at: string | null
+          scopes: string[]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          name: string
+          organisation_id: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          name?: string
+          organisation_id?: string
+          revoked_at?: string | null
+          scopes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asset_types: {
         Row: {
           category: string
@@ -1344,7 +1398,66 @@ export type Database = {
           granted_by?: string | null
           profile_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "platform_admins_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_admins_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_audit_log: {
+        Row: {
+          action: string
+          actor_profile_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          actor_profile_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          actor_profile_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_audit_log_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -2244,19 +2357,6 @@ export type Database = {
           role: Database["public"]["Enums"]["organisation_role"]
         }[]
       }
-      global_search: {
-        Args: { p_query: string; p_limit?: number }
-        Returns: {
-          entity_type: string
-          entity_id: string
-          title: string
-          subtitle: string | null
-        }[]
-      }
-      is_platform_admin: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
       approve_purchase_order: {
         Args: { p_po_id: string }
         Returns: {
@@ -2308,6 +2408,14 @@ export type Database = {
         Args: { p_expiry_date: string }
         Returns: string
       }
+      create_api_key: {
+        Args: { p_name: string; p_organisation_id: string; p_scopes: string[] }
+        Returns: {
+          id: string
+          key_prefix: string
+          raw_key: string
+        }[]
+      }
       escalate_incident_to_work_order: {
         Args: {
           p_incident_id: string
@@ -2341,12 +2449,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      global_search: {
+        Args: { p_limit?: number; p_query: string }
+        Returns: {
+          entity_id: string
+          entity_type: string
+          subtitle: string
+          title: string
+        }[]
+      }
       has_permission: {
         Args: { p_organisation_id: string; p_permission_code: string }
         Returns: boolean
       }
       is_org_admin: { Args: { p_organisation_id: string }; Returns: boolean }
       is_org_member: { Args: { p_organisation_id: string }; Returns: boolean }
+      is_platform_admin: { Args: never; Returns: boolean }
       is_workshop_admin: {
         Args: { target_workshop_id: string }
         Returns: boolean
@@ -2483,6 +2601,7 @@ export type Database = {
         }
       }
       refresh_document_vault_statuses: { Args: never; Returns: number }
+      revoke_api_key: { Args: { p_key_id: string }; Returns: undefined }
       run_due_maintenance_schedules: {
         Args: { p_organisation_id: string }
         Returns: {
@@ -2555,6 +2674,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      validate_api_key: {
+        Args: { p_raw_key: string }
+        Returns: {
+          key_id: string
+          organisation_id: string
+          scopes: string[]
+        }[]
       }
     }
     Enums: {

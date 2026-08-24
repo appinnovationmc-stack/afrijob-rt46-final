@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight, CreditCard } from 'lucide-react';
+import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight, CreditCard, Key } from 'lucide-react';
 import { useOrgMembers, useOrgInvitations } from '@/hooks/useTeam';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useAuditLog } from '@/hooks/useAuditLog';
@@ -66,6 +66,7 @@ export default function OrgAdminDashboard() {
             title="Billing"
             detail={billing ? `${billing.plan} · ${BILLING_STATUS_META[billing.status]?.label ?? billing.status}` : 'No billing account'}
           />
+          <AdminLink to="/ops/admin/api-keys" icon={Key} title="API Keys" detail="External system integrations" />
           {isPlatformAdmin && (
             <AdminLink to="/ops/admin/super-admin" icon={ShieldAlert} title="Platform Administration" detail="Cross-organisation visibility" />
           )}
