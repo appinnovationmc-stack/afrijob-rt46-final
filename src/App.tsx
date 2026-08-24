@@ -38,6 +38,7 @@ import OrgSettings from '@/pages/ops/admin/OrgSettings';
 import PermissionMatrix from '@/pages/ops/admin/PermissionMatrix';
 import Team from '@/pages/ops/admin/Team';
 import AuditLog from '@/pages/ops/admin/AuditLog';
+import SuperAdmin from '@/pages/ops/admin/SuperAdmin';
 import AssetDetail from '@/pages/ops/admin/AssetDetail';
 import AcceptInvite, { getPendingInviteToken } from '@/pages/auth/AcceptInvite';
 import { useAcceptInvitation } from '@/hooks/useTeam';
@@ -158,6 +159,7 @@ function AppContent() {
             <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
             <Route path="/ops/admin/team" element={<Team />} />
             <Route path="/ops/admin/audit" element={<AuditLog />} />
+            <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

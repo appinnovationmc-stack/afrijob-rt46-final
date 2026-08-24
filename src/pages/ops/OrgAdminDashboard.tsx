@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Users, Mail, Shield, History, Settings, ArrowRight } from 'lucide-react';
+import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight } from 'lucide-react';
 import { useOrgMembers, useOrgInvitations } from '@/hooks/useTeam';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useAuditLog } from '@/hooks/useAuditLog';
+import { useIsPlatformAdmin } from '@/hooks/useSuperAdmin';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 
 // An org admin's job is administering the organisation itself, not
@@ -18,6 +19,7 @@ export default function OrgAdminDashboard() {
   const { data: members, isLoading: membersLoading } = useOrgMembers();
   const { data: invitations, isLoading: invitesLoading } = useOrgInvitations();
   const { data: recentAudit, isLoading: auditLoading } = useAuditLog({}, 0);
+  const { data: isPlatformAdmin } = useIsPlatformAdmin();
 
   const pendingInvites = (invitations ?? []).filter((i) => i.status === 'pending');
   const isLoading = membersLoading || invitesLoading || auditLoading;
@@ -56,6 +58,9 @@ export default function OrgAdminDashboard() {
             detail={`${recentAudit?.entries.length ?? 0} recent event${(recentAudit?.entries.length ?? 0) === 1 ? '' : 's'}`}
           />
           <AdminLink to="/ops/admin/settings" icon={Settings} title="Organisation Settings" detail="Industry mode, enabled modules, billing" />
+          {isPlatformAdmin && (
+            <AdminLink to="/ops/admin/super-admin" icon={ShieldAlert} title="Platform Administration" detail="Cross-organisation visibility" />
+          )}
         </div>
       )}
     </div>

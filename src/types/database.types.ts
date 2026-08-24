@@ -1328,6 +1328,24 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_admins: {
+        Row: {
+          granted_at: string
+          granted_by: string | null
+          profile_id: string
+        }
+        Insert: {
+          granted_at?: string
+          granted_by?: string | null
+          profile_id: string
+        }
+        Update: {
+          granted_at?: string
+          granted_by?: string | null
+          profile_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2234,6 +2252,10 @@ export type Database = {
           title: string
           subtitle: string | null
         }[]
+      }
+      is_platform_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       approve_purchase_order: {
         Args: { p_po_id: string }
