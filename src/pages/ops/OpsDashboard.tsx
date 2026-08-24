@@ -6,6 +6,7 @@ import {
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import TechnicianDashboard from '@/pages/ops/TechnicianDashboard';
 import OperationsManagerDashboard from '@/pages/ops/OperationsManagerDashboard';
+import ProcurementDashboard from '@/pages/ops/ProcurementDashboard';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
@@ -130,6 +131,9 @@ export default function OpsDashboard() {
   // someone in front of an org-wide action queue they don't actually own.
   if (org?.role === 'operations_manager') {
     return <OperationsManagerDashboard />;
+  }
+  if (org?.role === 'procurement_officer') {
+    return <ProcurementDashboard />;
   }
 
   // Every KPI the dashboard can show, keyed to match industryConfig.kpiOrder.
