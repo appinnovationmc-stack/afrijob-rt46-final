@@ -8,6 +8,7 @@ import TechnicianDashboard from '@/pages/ops/TechnicianDashboard';
 import OperationsManagerDashboard from '@/pages/ops/OperationsManagerDashboard';
 import ProcurementDashboard from '@/pages/ops/ProcurementDashboard';
 import ComplianceDashboard from '@/pages/ops/ComplianceDashboard';
+import OrgAdminDashboard from '@/pages/ops/OrgAdminDashboard';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
@@ -138,6 +139,9 @@ export default function OpsDashboard() {
   }
   if (org?.role === 'inspector') {
     return <ComplianceDashboard />;
+  }
+  if (org?.role === 'admin') {
+    return <OrgAdminDashboard />;
   }
 
   // Every KPI the dashboard can show, keyed to match industryConfig.kpiOrder.
