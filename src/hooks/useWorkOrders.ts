@@ -80,6 +80,26 @@ export function useWorkOrder(workOrderId: string | undefined) {
   });
 }
 
+// Powers the Technician dashboard's "my work" queue — the current user's
+// own assigned_profile_id, not the org-wide list useWorkOrders returns.
+// Excludes terminal statuses so the queue only ever shows actionable work.
+export function useMyWorkOrders(profileId: string | undefined) {
+  return useQuery({
+    queryKey: ['ops', 'my-work-orders', profileId],
+    enabled: !!profileId,
+    queryFn: async (): Promise<WorkOrderListItem[]> => {
+      const { data, error } = await supabase
+        .from('work_orders')
+        .select(WORK_ORDER_SELECT)
+        .eq('assignee_profile_id', profileId!)
+        .not('status', 'in', '(completed,cancelled,disputed)')
+        .order('due_at', { ascending: true, nullsFirst: false });
+      if (error) throw error;
+      return data as unknown as WorkOrderListItem[];
+    },
+  });
+}
+
 export function useUpdateWorkOrderStatus() {
   const qc = useQueryClient();
   return useMutation({

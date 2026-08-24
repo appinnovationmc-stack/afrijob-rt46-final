@@ -4,6 +4,7 @@ import {
   ChevronRight, Bell, PackageX, ShieldAlert, Car, Users, Wrench, History,
 } from 'lucide-react';
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
+import TechnicianDashboard from '@/pages/ops/TechnicianDashboard';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
@@ -112,6 +113,17 @@ export default function OpsDashboard() {
 
   const isLoading = orgLoading || itemsLoading || docsLoading || incidentsLoading || dueLoading || breachesLoading || workOrdersLoading;
   const lowStockCount = (items ?? []).filter(isBelowReorderPoint).length;
+
+  // Role determines what renders, not just what's hidden — a technician's
+  // job is working an assigned queue, not scanning org-wide KPIs/module
+  // nav. Every other role gets the full operations view below. Checked
+  // after every hook above has already run (not as an early return before
+  // them) so hook call order stays identical across renders regardless of
+  // role — an early return here would violate the Rules of Hooks the
+  // instant org.role resolves to 'technician' on a re-render.
+  if (org?.role === 'technician') {
+    return <TechnicianDashboard />;
+  }
 
   // Every KPI the dashboard can show, keyed to match industryConfig.kpiOrder.
   // Which ones actually render, and in what order, is resolved below from
