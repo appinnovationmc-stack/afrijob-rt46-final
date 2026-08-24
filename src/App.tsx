@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { createOrganisationAndWorkshop } from '@/lib/organisations';
 import { AppShell } from '@/components/layout/AppShell';
 import { Rt46AdminGuard } from '@/components/layout/Rt46AdminGuard';
+import { ModuleGuard } from '@/components/layout/ModuleGuard';
 import { ToastViewport } from '@/components/ui/Toast';
 import Login from '@/pages/auth/Login';
 import SignUp from '@/pages/auth/SignUp';
@@ -145,13 +146,28 @@ function AppContent() {
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
             <Route path="/ops" element={<OpsDashboard />} />
-            <Route path="/ops/inventory" element={<Inventory />} />
-            <Route path="/ops/procurement" element={<Procurement />} />
-            <Route path="/ops/documents" element={<DocumentVault />} />
-            <Route path="/ops/incidents" element={<Incidents />} />
-            <Route path="/ops/maintenance" element={<MaintenanceSchedules />} />
-            <Route path="/ops/sla" element={<SlaDashboard />} />
-            <Route path="/ops/notifications" element={<OpsNotifications />} />
+            <Route element={<ModuleGuard moduleKey="inventory" />}>
+              <Route path="/ops/inventory" element={<Inventory />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="procurement" />}>
+              <Route path="/ops/procurement" element={<Procurement />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="documents" />}>
+              <Route path="/ops/documents" element={<DocumentVault />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="incidents" />}>
+              <Route path="/ops/incidents" element={<Incidents />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="maintenance" />}>
+              <Route path="/ops/maintenance" element={<MaintenanceSchedules />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="sla" />}>
+              <Route path="/ops/sla" element={<SlaDashboard />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="notifications" />}>
+              <Route path="/ops/notifications" element={<OpsNotifications />} />
+            </Route>
+            {/* work_orders is deliberately ungated — cross-source view, always shown regardless of enabled_modules (see OpsDashboard NAV_ITEMS comment) */}
             <Route path="/ops/work-orders" element={<WorkOrderList />} />
             <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
