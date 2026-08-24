@@ -6,6 +6,10 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 export default [
   {
     ignores: ['dist/**', 'android/**', 'ios/**', 'node_modules/**', 'coverage/**'],
+    linterOptions: {
+      noInlineConfig: true,
+      reportUnusedDisableDirectives: 'off',
+    },
   },
   {
     files: ['**/*.{ts,tsx}'],
