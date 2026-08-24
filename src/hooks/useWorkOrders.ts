@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganisation } from './useOrganisation';
+import { offlineDb } from '@/lib/offlineDb';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import type { Enums } from '@/types/database.types';
 
 type WorkOrderStatus = Enums<'work_order_generic_status'>;
@@ -153,15 +155,32 @@ export function useWorkOrderIncidents(workOrderId: string | undefined) {
 
 export function useUpdateWorkOrderStatus() {
   const qc = useQueryClient();
+  const online = useNetworkStatus();
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: WorkOrderStatus }) => {
-      const { error } = await supabase
-        .from('work_orders')
-        .update({
-          status,
-          ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {}),
-        })
-        .eq('id', id);
+      const updates = {
+        status,
+        ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {}),
+      };
+
+      // Offline: queue the update instead of failing outright. Same
+      // conflict-detection shape as the jobs queue — snapshot updated_at
+      // now (from cache, since we're offline) so useOpsSyncQueue can flag
+      // if it changed elsewhere by the time this actually syncs.
+      if (!online) {
+        const cached = qc.getQueryData<{ updated_at: string }>(['ops', 'work-order', id]);
+        await offlineDb.queuedOpsWorkOrderUpdates.put({
+          localId: `local:${crypto.randomUUID()}`,
+          workOrderId: id,
+          updates,
+          baseUpdatedAt: cached?.updated_at ?? null,
+          createdAt: new Date().toISOString(),
+          synced: false,
+        });
+        return { id, status };
+      }
+
+      const { error } = await supabase.from('work_orders').update(updates).eq('id', id);
       if (error) throw error;
       return { id, status };
     },

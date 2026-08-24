@@ -4,6 +4,7 @@ import { NotificationBell } from './NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
 import { useSyncQueue } from '@/hooks/useSyncQueue';
 import { useRt46SyncQueue } from '@/hooks/useRt46SyncQueue';
+import { useOpsSyncQueue } from '@/hooks/useOpsSyncQueue';
 import { WifiOff, RefreshCw } from 'lucide-react';
 
 export function AppShell() {
@@ -11,6 +12,7 @@ export function AppShell() {
   // back online, regardless of which screen the user is on.
   const { online, syncing, pendingCount } = useSyncQueue();
   const { syncing: rt46Syncing, pendingCount: rt46PendingCount } = useRt46SyncQueue();
+  const { syncing: opsSyncing, pendingCount: opsPendingCount } = useOpsSyncQueue();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -18,10 +20,10 @@ export function AppShell() {
         <div className="bg-warning text-white text-xs font-semibold text-center py-1.5 flex items-center justify-center gap-1.5">
           <WifiOff className="w-3.5 h-3.5" />
           Offline — changes will sync when you're back online
-          {(pendingCount + rt46PendingCount) > 0 && ` (${pendingCount + rt46PendingCount} pending)`}
+          {(pendingCount + rt46PendingCount + opsPendingCount) > 0 && ` (${pendingCount + rt46PendingCount + opsPendingCount} pending)`}
         </div>
       )}
-      {online && (syncing || rt46Syncing) && (
+      {online && (syncing || rt46Syncing || opsSyncing) && (
         <div className="bg-brand text-white text-xs font-semibold text-center py-1.5 flex items-center justify-center gap-1.5">
           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
           Syncing offline changes…

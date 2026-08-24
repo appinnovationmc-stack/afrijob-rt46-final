@@ -69,6 +69,20 @@ export interface QueuedRt46ChecklistUpdate {
   synced: boolean;
 }
 
+// Generic-AfriOps equivalent of QueuedStatusUpdate, above — work_orders is
+// the canonical table (Phase D), not jobs, and Ops modules had no offline
+// queue at all (matrix: "Ops modules have none"). Same conflict-detection
+// shape (baseUpdatedAt snapshot, flagged not overwritten) as the proven
+// jobs pattern, not a new mechanism.
+export interface QueuedOpsWorkOrderUpdate {
+  localId: string;
+  workOrderId: string;
+  updates: TablesUpdate<'work_orders'>;
+  baseUpdatedAt: string | null;
+  createdAt: string;
+  synced: boolean;
+}
+
 class AfriJobDB extends Dexie {
   jobsCache!: Table<Tables<'jobs'>, string>;
   queuedJobs!: Table<QueuedJob, string>;
@@ -77,6 +91,7 @@ class AfriJobDB extends Dexie {
   syncConflicts!: Table<SyncConflict, string>;
   queuedRt46Evidence!: Table<QueuedRt46Evidence, string>;
   queuedRt46ChecklistUpdates!: Table<QueuedRt46ChecklistUpdate, string>;
+  queuedOpsWorkOrderUpdates!: Table<QueuedOpsWorkOrderUpdate, string>;
 
   constructor() {
     super('afrijob-offline');
@@ -100,6 +115,19 @@ class AfriJobDB extends Dexie {
       syncConflicts: 'id, jobId',
       queuedRt46Evidence: 'localId, workOrderId, synced',
       queuedRt46ChecklistUpdates: 'localId, itemId, synced',
+    });
+    // v4 is purely additive (new store only) — Dexie migrates existing
+    // client databases automatically, no data loss for jobs/rt46 offline
+    // queues already sitting on a device.
+    this.version(4).stores({
+      jobsCache: 'id, workshop_id, status',
+      queuedJobs: 'localId, workshop_id, synced',
+      queuedPhotos: 'localId, jobId, synced',
+      queuedStatusUpdates: 'localId, jobId, synced',
+      syncConflicts: 'id, jobId',
+      queuedRt46Evidence: 'localId, workOrderId, synced',
+      queuedRt46ChecklistUpdates: 'localId, itemId, synced',
+      queuedOpsWorkOrderUpdates: 'localId, workOrderId, synced',
     });
   }
 }
