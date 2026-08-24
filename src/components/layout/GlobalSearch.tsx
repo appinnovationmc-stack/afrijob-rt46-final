@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { useGlobalSearch, SEARCH_RESULT_HREF, SEARCH_RESULT_TYPE_LABELS } from '@/hooks/useGlobalSearch';
@@ -7,7 +7,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { data: results, isFetching } = useGlobalSearch(query);
 
@@ -15,27 +17,54 @@ export function GlobalSearch() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Reset the highlighted row whenever the result set changes so a stale
+  // index from the previous query never points at the wrong row.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [results]);
+
+  useEffect(() => {
+    listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  const goTo = useCallback(
+    (entityType: keyof typeof SEARCH_RESULT_HREF, entityId: string) => {
+      setOpen(false);
+      setQuery('');
+      navigate(SEARCH_RESULT_HREF[entityType](entityId));
+    },
+    [navigate]
+  );
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // Cmd/Ctrl+K opens search from anywhere; Escape closes it — the
-      // "keyboard-friendly search" the spec asks for, kept minimal rather
-      // than a full command-palette (arrow-key result navigation etc.)
-      // since nothing in this codebase established that pattern yet.
+      // Cmd/Ctrl+K opens search from anywhere.
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setOpen(true);
+        return;
       }
-      if (e.key === 'Escape') setOpen(false);
+      if (!open) return;
+      if (e.key === 'Escape') {
+        setOpen(false);
+        return;
+      }
+      if (!results?.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex((i) => (i + 1) % results.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex((i) => (i - 1 + results.length) % results.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const r = results[activeIndex];
+        if (r) goTo(r.entity_type, r.entity_id);
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  function goTo(entityType: keyof typeof SEARCH_RESULT_HREF, entityId: string) {
-    setOpen(false);
-    setQuery('');
-    navigate(SEARCH_RESULT_HREF[entityType](entityId));
-  }
+  }, [open, results, activeIndex, goTo]);
 
   return (
     <>
@@ -64,7 +93,7 @@ export function GlobalSearch() {
               </button>
             </div>
 
-            <div className="max-h-80 overflow-y-auto">
+            <div className="max-h-80 overflow-y-auto" ref={listRef}>
               {query.trim().length < 2 ? (
                 <p className="text-xs text-gray-400 text-center py-8">Type at least 2 characters to search</p>
               ) : isFetching ? (
@@ -75,11 +104,15 @@ export function GlobalSearch() {
                 </div>
               ) : (
                 <div className="py-1">
-                  {results.map((r) => (
+                  {results.map((r, i) => (
                     <button
                       key={`${r.entity_type}-${r.entity_id}`}
+                      data-active={i === activeIndex}
+                      onMouseEnter={() => setActiveIndex(i)}
                       onClick={() => goTo(r.entity_type, r.entity_id)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-charcoal flex items-center justify-between gap-2"
+                      className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 ${
+                        i === activeIndex ? 'bg-gray-50 dark:bg-charcoal' : ''
+                      }`}
                     >
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{r.title}</p>
@@ -90,6 +123,11 @@ export function GlobalSearch() {
                   ))}
                 </div>
               )}
+            </div>
+            <div className="hidden sm:flex items-center gap-3 px-4 py-1.5 border-t border-gray-100 dark:border-charcoal text-[10px] text-gray-400">
+              <span>↑↓ navigate</span>
+              <span>↵ open</span>
+              <span>esc close</span>
             </div>
           </div>
         </div>
