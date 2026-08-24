@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Truck, X, Plus, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Truck, X, Plus, Trash2 } from 'lucide-react';
 import {
   useServiceProviders, useCreateServiceProvider, useUpdateServiceProviderStatus,
   useServiceProviderCapabilities, useAddCapability, useRemoveCapability,
@@ -245,6 +246,9 @@ export default function ServiceProviders() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <h1 className="font-heading font-bold text-2xl mb-1">Service Providers</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Workshops, contractors and suppliers your organisation works with.</p>
 

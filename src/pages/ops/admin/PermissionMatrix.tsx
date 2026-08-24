@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ShieldCheck, ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, ShieldCheck, ChevronDown } from 'lucide-react';
 import { usePermissionCatalogue, useRolePermissions, useSetRolePermission } from '@/hooks/useRolePermissions';
 import { useOrganisation, roleAtLeast } from '@/hooks/useOrganisation';
 import { useToastStore } from '@/components/ui/Toast';
@@ -26,7 +27,14 @@ export default function PermissionMatrix() {
   const isOwner = roleAtLeast(org?.role, 'owner');
 
   if (permsLoading || rpLoading || !permissions || !rolePermissions) {
-    return <div className="px-4 pt-6 pb-24 space-y-3"><SkeletonCard /><SkeletonCard /></div>;
+    return (
+      <div className="px-4 pt-6 pb-24 space-y-3">
+        <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Link>
+        <SkeletonCard /><SkeletonCard />
+      </div>
+    );
   }
 
   const grantMap = new Map<string, boolean>();
@@ -37,6 +45,9 @@ export default function PermissionMatrix() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <h1 className="font-heading font-bold text-2xl mb-1">Permission Matrix</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Which roles can do what — applies platform-wide, across every organisation.</p>
       {!isOwner && (

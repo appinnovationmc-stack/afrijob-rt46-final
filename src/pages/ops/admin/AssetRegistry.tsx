@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, MapPin, Tag, Car, X } from 'lucide-react';
+import { Building2, MapPin, Tag, Car, X, ArrowLeft } from 'lucide-react';
 import {
   useSites, useCreateSite, useBusinessUnits, useCreateBusinessUnit,
   useAssetTypes, useCreateAssetType, useAssets, useCreateAsset,
@@ -326,6 +326,9 @@ export default function AssetRegistry() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <h1 className="font-heading font-bold text-2xl mb-1">{industryConfig.assetLabelPlural} Registry</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         Sites, business units, {industryConfig.assetLabelSingular.toLowerCase()} types and {industryConfig.assetLabelPlural.toLowerCase()} — the foundational data every other Ops module builds on.

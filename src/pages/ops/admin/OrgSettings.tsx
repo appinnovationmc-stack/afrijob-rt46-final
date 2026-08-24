@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Check } from 'lucide-react';
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS } from '@/hooks/useOrganisation';
 import { useUpdateOrgSettings, useUpdateOrgName, ORG_MODULE_KEYS, MODULE_LABELS, INDUSTRY_MODES } from '@/hooks/useOrgSettings';
 import { useToastStore } from '@/components/ui/Toast';
@@ -23,6 +24,9 @@ export default function OrgSettings() {
   if (isLoading || !org) {
     return (
       <div className="px-4 pt-6 pb-24 space-y-3">
+        <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Link>
         <SkeletonCard /><SkeletonCard />
       </div>
     );
@@ -43,6 +47,9 @@ export default function OrgSettings() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <h1 className="font-heading font-bold text-2xl mb-1">Organisation Settings</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">Industry mode, module visibility, and organisation details.</p>
 

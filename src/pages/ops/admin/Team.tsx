@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Users, Info, Trash2, Copy, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Users, Info, Trash2, Copy, X } from 'lucide-react';
 import {
   useOrgMembers, useSetMemberRole, useRemoveMember, ORG_ROLES,
   useOrgInvitations, useCreateInvitation, useRevokeInvitation,
@@ -56,6 +57,9 @@ export default function Team() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      <Link to="/ops" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <h1 className="font-heading font-bold text-2xl mb-1">Team & Roles</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
         {org?.organisation_name ?? 'Organisation'} members and their access level.
