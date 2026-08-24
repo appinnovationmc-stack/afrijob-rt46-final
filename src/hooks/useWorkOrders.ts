@@ -100,6 +100,57 @@ export function useMyWorkOrders(profileId: string | undefined) {
   });
 }
 
+export interface WorkOrderSlaBreach {
+  id: string;
+  metric: 'response' | 'resolution';
+  breached_at: string;
+  minutes_over: number;
+  acknowledged_at: string | null;
+}
+
+export function useWorkOrderSlaBreaches(workOrderId: string | undefined) {
+  return useQuery({
+    queryKey: ['ops', 'work-order-sla-breaches', workOrderId],
+    enabled: !!workOrderId,
+    queryFn: async (): Promise<WorkOrderSlaBreach[]> => {
+      const { data, error } = await supabase
+        .from('sla_breaches')
+        .select('id, metric, breached_at, minutes_over, acknowledged_at')
+        .eq('work_order_id', workOrderId!)
+        .order('breached_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as WorkOrderSlaBreach[];
+    },
+  });
+}
+
+export interface WorkOrderIncident {
+  id: string;
+  category: string;
+  severity: string;
+  status: string;
+  occurred_at: string;
+}
+
+// incidents links back to a work order via linked_work_order_id (the
+// reverse of the more common asset-scoped incident) — confirmed as a real
+// column against live schema before writing this.
+export function useWorkOrderIncidents(workOrderId: string | undefined) {
+  return useQuery({
+    queryKey: ['ops', 'work-order-incidents', workOrderId],
+    enabled: !!workOrderId,
+    queryFn: async (): Promise<WorkOrderIncident[]> => {
+      const { data, error } = await supabase
+        .from('incidents')
+        .select('id, category, severity, status, occurred_at')
+        .eq('linked_work_order_id', workOrderId!)
+        .order('occurred_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as WorkOrderIncident[];
+    },
+  });
+}
+
 export function useUpdateWorkOrderStatus() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,10 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, Boxes } from 'lucide-react';
+import { ArrowLeft, Wrench, Boxes, Timer, FileText, AlertTriangle, History } from 'lucide-react';
 import {
-  useWorkOrder, useUpdateWorkOrderStatus,
+  useWorkOrder, useUpdateWorkOrderStatus, useWorkOrderSlaBreaches, useWorkOrderIncidents,
   WORK_ORDER_CATEGORY_LABELS, WORK_ORDER_PRIORITY_META, WORK_ORDER_SOURCE_LABELS, WORK_ORDER_NEXT_STATUS,
 } from '@/hooks/useWorkOrders';
 import { useWorkOrderParts } from '@/hooks/useWorkOrderParts';
+import { useVaultDocuments } from '@/hooks/useAfriops';
+import { useAuditLog, AUDIT_ACTION_LABELS } from '@/hooks/useAuditLog';
+import { ComplianceStatusChip } from '@/components/ui/StatusChip';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToastStore } from '@/components/ui/Toast';
@@ -32,6 +35,10 @@ export default function WorkOrderDetail() {
   const { workOrderId } = useParams<{ workOrderId: string }>();
   const { data: wo, isLoading } = useWorkOrder(workOrderId);
   const { data: parts } = useWorkOrderParts(workOrderId);
+  const { data: slaBreaches } = useWorkOrderSlaBreaches(workOrderId);
+  const { data: incidents } = useWorkOrderIncidents(workOrderId);
+  const { data: documents } = useVaultDocuments('work_order', workOrderId);
+  const { data: auditLog } = useAuditLog({ entityType: 'work_order', entityId: workOrderId }, 0);
   const updateStatus = useUpdateWorkOrderStatus();
   const push = useToastStore((s) => s.push);
 
@@ -130,6 +137,68 @@ export default function WorkOrderDetail() {
             <span>Parts total</span>
             <span>{formatCurrencyZAR(partsTotal)}</span>
           </div>
+        </div>
+      )}
+
+      <h2 className="font-heading font-bold text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1 mt-4">SLA</h2>
+      {!slaBreaches?.length ? (
+        <EmptyState icon={Timer} title="No SLA breaches" description="This work order has not breached any SLA target." />
+      ) : (
+        <div className="space-y-2">
+          {slaBreaches.map((b) => (
+            <div key={b.id} className={cn('card !py-3', !b.acknowledged_at && 'border-danger/40')}>
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <p className="font-medium text-sm flex-1 capitalize">{b.metric} breach</p>
+                {!b.acknowledged_at && <span className="text-xs font-semibold text-danger">Unacknowledged</span>}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{b.minutes_over} min over target · Breached {formatDate(b.breached_at)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="font-heading font-bold text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1 mt-4">Linked Incidents</h2>
+      {!incidents?.length ? (
+        <EmptyState icon={AlertTriangle} title="No linked incidents" description="No incidents have been linked to this work order." />
+      ) : (
+        <div className="space-y-2">
+          {incidents.map((i) => (
+            <div key={i.id} className="card !py-3">
+              <p className="font-medium text-sm">{i.category}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{i.severity} severity · {i.status} · {formatDate(i.occurred_at)}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="font-heading font-bold text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1 mt-4">Documents</h2>
+      {!documents?.length ? (
+        <EmptyState icon={FileText} title="No documents" description="No documents have been attached to this work order." />
+      ) : (
+        <div className="space-y-2">
+          {documents.map((d) => (
+            <div key={d.id} className="card !py-3 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium text-sm truncate">{d.doc_type}</p>
+                {d.expiry_date && <p className="text-xs text-gray-500 dark:text-gray-400">Expires {formatDate(d.expiry_date)}</p>}
+              </div>
+              <ComplianceStatusChip status={d.status} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <h2 className="font-heading font-bold text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 px-1 mt-4">Audit History</h2>
+      {!auditLog?.entries.length ? (
+        <EmptyState icon={History} title="No audit history" description="No changes have been recorded against this work order." />
+      ) : (
+        <div className="space-y-2">
+          {auditLog.entries.map((entry) => (
+            <div key={entry.id} className="card !py-3">
+              <p className="font-medium text-sm">{AUDIT_ACTION_LABELS[entry.action] ?? entry.action}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{entry.actor?.full_name ?? 'System'} · {formatDate(entry.created_at)}</p>
+            </div>
+          ))}
         </div>
       )}
     </div>
