@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes } from 'lucide-react';
+import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes, History } from 'lucide-react';
 import {
   useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments,
 } from '@/hooks/useAssetRegistry';
 import { useAssetParts } from '@/hooks/useWorkOrderParts';
+import { useAuditLog, AUDIT_ACTION_LABELS, AUDIT_SEVERITY_LABELS, type AuditSeverity } from '@/hooks/useAuditLog';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import {
@@ -16,7 +17,7 @@ import {
 import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
 import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 
-type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents';
+type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents' | 'audit';
 
 const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'overview', label: 'Overview', icon: Gauge },
@@ -25,7 +26,14 @@ const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
   { id: 'documents', label: 'Documents', icon: FileText },
+  { id: 'audit', label: 'Audit', icon: History },
 ];
+
+const AUDIT_SEVERITY_STYLES: Record<AuditSeverity, string> = {
+  info: 'text-gray-500 dark:text-gray-400',
+  warning: 'text-amber-600 dark:text-amber-400',
+  critical: 'text-danger',
+};
 
 // SOURCE_LABELS makes work_orders.source_system readable — 'afrijob' is the
 // legacy per-workshop job-card flow, 'rt46' is the government programme,
@@ -54,6 +62,14 @@ export default function AssetDetail() {
   const { data: incidents } = useAssetIncidents(assetId);
   const { data: maintenance } = useAssetMaintenanceSchedules(assetId);
   const { data: documents } = useAssetDocuments(assetId);
+  // Audit tab is scoped to this asset's own record changes (entity_type
+  // 'asset', entity_id = this asset). It intentionally does NOT pull in
+  // audit rows for this asset's work orders/incidents/parts/maintenance —
+  // those already have their own timelines in their respective tabs above,
+  // and merging cross-entity audit rows here would need a second query
+  // per related entity id list; scoping to the asset record itself is the
+  // honest, verifiable slice rather than a half-merged approximation.
+  const { data: assetAudit } = useAuditLog({ entityType: 'asset', entityId: assetId }, 0);
 
   if (assetLoading) {
     return (
@@ -235,6 +251,28 @@ export default function AssetDetail() {
                 </div>
                 {i.description && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{i.description}</p>}
                 <p className="text-xs text-gray-400 mt-0.5">{i.severity} severity · {formatDate(i.occurred_at)}</p>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {tab === 'audit' && (
+        (assetAudit?.entries ?? []).length === 0 ? (
+          <EmptyState icon={History} title="No audit history" description="No changes have been recorded against this asset record yet." />
+        ) : (
+          <div className="space-y-2">
+            {assetAudit!.entries.map((entry) => (
+              <div key={entry.id} className="card !py-3">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-medium text-sm flex-1">{AUDIT_ACTION_LABELS[entry.action] ?? entry.action}</p>
+                  <span className={cn('text-xs font-medium', AUDIT_SEVERITY_STYLES[entry.severity])}>
+                    {AUDIT_SEVERITY_LABELS[entry.severity]}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {entry.actor?.full_name ?? 'System'} · {formatDate(entry.created_at)}
+                </p>
               </div>
             ))}
           </div>

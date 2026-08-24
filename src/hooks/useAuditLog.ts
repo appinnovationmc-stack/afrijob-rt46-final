@@ -20,6 +20,7 @@ export interface AuditLogEntry {
 
 export interface AuditLogFilters {
   entityType?: string;
+  entityId?: string;
   action?: string;
   actorProfileId?: string;
   severity?: AuditSeverity;
@@ -60,6 +61,7 @@ export function useAuditLog(filters: AuditLogFilters, page: number = 0) {
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
       if (filters.entityType) query = query.eq('entity_type', filters.entityType);
+      if (filters.entityId) query = query.eq('entity_id', filters.entityId);
       if (filters.action) query = query.eq('action', filters.action);
       if (filters.actorProfileId) query = query.eq('actor_profile_id', filters.actorProfileId);
       if (filters.severity) query = query.eq('severity', filters.severity);
