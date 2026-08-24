@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Wrench } from 'lucide-react';
 import { useWorkOrders, WORK_ORDER_CATEGORY_LABELS, WORK_ORDER_PRIORITY_META, WORK_ORDER_SOURCE_LABELS } from '@/hooks/useWorkOrders';
+import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { EnumStatusChip, WORK_ORDER_STATUS_STYLES, WORK_ORDER_STATUS_LABELS } from '@/components/ui/StatusChip';
@@ -16,7 +17,9 @@ const STATUS_FILTERS: (WorkOrderStatus | 'all')[] = [
 
 export default function WorkOrderList() {
   const [filter, setFilter] = useState<WorkOrderStatus | 'all'>('all');
+  const { data: org } = useOrganisation();
   const { data: workOrders, isLoading } = useWorkOrders(filter === 'all' ? undefined : filter);
+  const categoryLabels = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'].categoryLabels ?? {};
 
   return (
     <div className="px-4 pt-6 pb-24">
@@ -49,14 +52,15 @@ export default function WorkOrderList() {
           {workOrders.map((w) => {
             const priorityMeta = WORK_ORDER_PRIORITY_META[w.priority];
             const assetLabel = w.asset ? [w.asset.manufacturer, w.asset.model].filter(Boolean).join(' ') || w.asset.asset_number : null;
+            const categoryLabel = categoryLabels[w.category] ?? WORK_ORDER_CATEGORY_LABELS[w.category];
             return (
               <Link key={w.id} to={`/ops/work-orders/${w.id}`} className="card !py-3 block">
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <p className="font-medium text-sm flex-1">{w.description || WORK_ORDER_CATEGORY_LABELS[w.category]}</p>
+                  <p className="font-medium text-sm flex-1">{w.description || categoryLabel}</p>
                   <EnumStatusChip status={w.status} styles={WORK_ORDER_STATUS_STYLES} labels={WORK_ORDER_STATUS_LABELS} />
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {WORK_ORDER_SOURCE_LABELS[w.source_system] ?? w.source_system} · {WORK_ORDER_CATEGORY_LABELS[w.category]}
+                  {WORK_ORDER_SOURCE_LABELS[w.source_system] ?? w.source_system} · {categoryLabel}
                   {assetLabel && <span> · {assetLabel}</span>}
                   {w.site && <span> · {w.site.name}</span>}
                 </p>
