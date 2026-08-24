@@ -364,3 +364,32 @@ export function useAssetDocuments(assetId: string | undefined) {
     },
   });
 }
+
+// SLA breaches don't carry asset_id directly — only work_order_id. Joins
+// through the FK to work_orders and filters the embedded resource, same
+// pattern PostgREST supports elsewhere for this kind of asset-scoped-via-
+// work-order query.
+export interface AssetSlaBreach {
+  id: string;
+  metric: 'response' | 'resolution';
+  breached_at: string;
+  minutes_over: number;
+  acknowledged_at: string | null;
+  work_order_id: string;
+}
+
+export function useAssetSlaBreaches(assetId: string | undefined) {
+  return useQuery({
+    queryKey: ['ops', 'asset-sla-breaches', assetId],
+    enabled: !!assetId,
+    queryFn: async (): Promise<AssetSlaBreach[]> => {
+      const { data, error } = await supabase
+        .from('sla_breaches')
+        .select('id, metric, breached_at, minutes_over, acknowledged_at, work_order_id, work_orders!inner(asset_id)')
+        .eq('work_orders.asset_id', assetId!)
+        .order('breached_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as AssetSlaBreach[];
+    },
+  });
+}

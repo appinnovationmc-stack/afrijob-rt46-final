@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes, History } from 'lucide-react';
+import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes, History, Timer } from 'lucide-react';
 import {
-  useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments,
+  useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments, useAssetSlaBreaches,
 } from '@/hooks/useAssetRegistry';
 import { useAssetParts } from '@/hooks/useWorkOrderParts';
 import { useAuditLog, AUDIT_ACTION_LABELS, AUDIT_SEVERITY_LABELS, type AuditSeverity } from '@/hooks/useAuditLog';
@@ -17,7 +17,7 @@ import {
 import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
 import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 
-type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents' | 'audit';
+type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents' | 'sla' | 'audit';
 
 const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'overview', label: 'Overview', icon: Gauge },
@@ -25,6 +25,7 @@ const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'parts', label: 'Parts', icon: Boxes },
   { id: 'maintenance', label: 'Maintenance', icon: CalendarClock },
   { id: 'incidents', label: 'Incidents', icon: AlertTriangle },
+  { id: 'sla', label: 'SLA', icon: Timer },
   { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'audit', label: 'Audit', icon: History },
 ];
@@ -70,6 +71,7 @@ export default function AssetDetail() {
   // per related entity id list; scoping to the asset record itself is the
   // honest, verifiable slice rather than a half-merged approximation.
   const { data: assetAudit } = useAuditLog({ entityType: 'asset', entityId: assetId }, 0);
+  const { data: slaBreaches } = useAssetSlaBreaches(assetId);
 
   if (assetLoading) {
     return (
@@ -91,6 +93,7 @@ export default function AssetDetail() {
   const totalCost = (workOrders ?? []).reduce((sum, w) => sum + (w.actual_cost ?? 0), 0);
   const overdueMaintenance = (maintenance ?? []).filter((m) => m.active && m.next_due_at && new Date(m.next_due_at) < new Date());
   const openIncidents = (incidents ?? []).filter((i) => i.status !== 'resolved' && i.status !== 'closed');
+  const unacknowledgedSlaBreaches = (slaBreaches ?? []).filter((b) => !b.acknowledged_at);
   const partsTotal = (parts ?? []).reduce((sum, p) => sum + (p.line_total ?? 0), 0);
 
   const title = [asset.manufacturer, asset.model].filter(Boolean).join(' ') || asset.asset_number || industryConfig.assetLabelSingular;
@@ -134,6 +137,12 @@ export default function AssetDetail() {
           <p className="text-xs text-gray-500 dark:text-gray-400">Open incidents</p>
           <p className={cn('font-heading font-bold text-lg', openIncidents.length > 0 && 'text-danger')}>
             {openIncidents.length}
+          </p>
+        </div>
+        <div className={cn('card !py-3', unacknowledgedSlaBreaches.length > 0 && 'border-danger/40')}>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Unacknowledged SLA breaches</p>
+          <p className={cn('font-heading font-bold text-lg', unacknowledgedSlaBreaches.length > 0 && 'text-danger')}>
+            {unacknowledgedSlaBreaches.length}
           </p>
         </div>
       </div>
@@ -280,6 +289,29 @@ export default function AssetDetail() {
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {entry.actor?.full_name ?? 'System'} · {formatDate(entry.created_at)}
                 </p>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {tab === 'sla' && (
+        (slaBreaches ?? []).length === 0 ? (
+          <EmptyState icon={Timer} title="No SLA breaches" description="This asset's work orders have not breached any SLA target." />
+        ) : (
+          <div className="space-y-2">
+            {slaBreaches!.map((b) => (
+              <div key={b.id} className={cn('card !py-3', !b.acknowledged_at && 'border-danger/40')}>
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="font-medium text-sm flex-1 capitalize">{b.metric} breach</p>
+                  {!b.acknowledged_at && <span className="text-xs font-semibold text-danger">Unacknowledged</span>}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {b.minutes_over} min over target · Breached {formatDate(b.breached_at)}
+                </p>
+                {b.acknowledged_at && (
+                  <p className="text-xs text-gray-400 mt-0.5">Acknowledged {formatDate(b.acknowledged_at)}</p>
+                )}
               </div>
             ))}
           </div>
