@@ -2226,6 +2226,15 @@ export type Database = {
           role: Database["public"]["Enums"]["organisation_role"]
         }[]
       }
+      global_search: {
+        Args: { p_query: string; p_limit?: number }
+        Returns: {
+          entity_type: string
+          entity_id: string
+          title: string
+          subtitle: string | null
+        }[]
+      }
       approve_purchase_order: {
         Args: { p_po_id: string }
         Returns: {
