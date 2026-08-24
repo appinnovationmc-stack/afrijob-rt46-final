@@ -2207,8 +2207,11 @@ export type Database = {
           job_id: string | null
           line_total: number | null
           organisation_id: string | null
+          po_number: string | null
+          purchase_order_id: string | null
           quantity: number | null
           source: string | null
+          supplier_name: string | null
           unit_cost: number | null
           work_order_id: string | null
         }

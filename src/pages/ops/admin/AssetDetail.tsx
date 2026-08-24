@@ -201,6 +201,13 @@ export default function AssetDetail() {
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {PART_SOURCE_LABELS[p.source ?? ''] ?? p.source} · {p.quantity} × {p.unit_cost != null ? formatCurrencyZAR(p.unit_cost) : '—'} · {formatDate(p.created_at)}
                   </p>
+                  {/* Only inventory_movements-sourced lines can carry a real supplier
+                      link (receipted against a PO via purchase_order_item_id).
+                      job_parts has no PO column, so those rows never show this —
+                      no fabricated procurement trail for legacy job-card entries. */}
+                  {p.supplier_name && (
+                    <p className="text-xs text-gray-400 mt-0.5">via {p.supplier_name}</p>
+                  )}
                 </div>
                 <p className="font-semibold">{p.line_total != null ? formatCurrencyZAR(p.line_total) : '—'}</p>
               </div>
