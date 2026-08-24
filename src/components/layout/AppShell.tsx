@@ -6,6 +6,7 @@ import { useSyncQueue } from '@/hooks/useSyncQueue';
 import { useRt46SyncQueue } from '@/hooks/useRt46SyncQueue';
 import { useOpsSyncQueue } from '@/hooks/useOpsSyncQueue';
 import { WifiOff, RefreshCw } from 'lucide-react';
+import { BillingStatusBanner, BillingBlockedScreen } from './BillingStatusBanner';
 
 export function AppShell() {
   // Mounted once here so the offline queue flushes as soon as the app comes
@@ -15,7 +16,9 @@ export function AppShell() {
   const { syncing: opsSyncing, pendingCount: opsPendingCount } = useOpsSyncQueue();
 
   return (
+    <BillingBlockedScreen>
     <div className="min-h-screen flex flex-col">
+      <BillingStatusBanner />
       {!online && (
         <div className="bg-warning text-white text-xs font-semibold text-center py-1.5 flex items-center justify-center gap-1.5">
           <WifiOff className="w-3.5 h-3.5" />
@@ -40,5 +43,6 @@ export function AppShell() {
       </main>
       <BottomNav />
     </div>
+    </BillingBlockedScreen>
   );
 }
