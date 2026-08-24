@@ -7,3 +7,5 @@ dist/
 .env*
 supabase/.temp/
 afriops-src.zip
+.DS_Store
+*.zip
