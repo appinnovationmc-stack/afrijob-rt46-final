@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import TechnicianDashboard from '@/pages/ops/TechnicianDashboard';
+import OperationsManagerDashboard from '@/pages/ops/OperationsManagerDashboard';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
@@ -123,6 +124,12 @@ export default function OpsDashboard() {
   // instant org.role resolves to 'technician' on a re-render.
   if (org?.role === 'technician') {
     return <TechnicianDashboard />;
+  }
+  // Only the exact 'operations_manager' role, not 'supervisor' — the two
+  // are close but not proven equivalent, and guessing wrong here would put
+  // someone in front of an org-wide action queue they don't actually own.
+  if (org?.role === 'operations_manager') {
+    return <OperationsManagerDashboard />;
   }
 
   // Every KPI the dashboard can show, keyed to match industryConfig.kpiOrder.
