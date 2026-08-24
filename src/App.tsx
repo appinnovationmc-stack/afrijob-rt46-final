@@ -35,6 +35,7 @@ import OpsNotifications from '@/pages/ops/Notifications';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import OrgSettings from '@/pages/ops/admin/OrgSettings';
+import Billing from '@/pages/ops/admin/Billing';
 import PermissionMatrix from '@/pages/ops/admin/PermissionMatrix';
 import Team from '@/pages/ops/admin/Team';
 import AuditLog from '@/pages/ops/admin/AuditLog';
@@ -156,6 +157,7 @@ function AppContent() {
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
             <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
             <Route path="/ops/admin/settings" element={<OrgSettings />} />
+            <Route path="/ops/admin/billing" element={<Billing />} />
             <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
             <Route path="/ops/admin/team" element={<Team />} />
             <Route path="/ops/admin/audit" element={<AuditLog />} />

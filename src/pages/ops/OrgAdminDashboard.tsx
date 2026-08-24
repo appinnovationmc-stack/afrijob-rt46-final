@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight } from 'lucide-react';
+import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight, CreditCard } from 'lucide-react';
 import { useOrgMembers, useOrgInvitations } from '@/hooks/useTeam';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { useAuditLog } from '@/hooks/useAuditLog';
-import { useIsPlatformAdmin } from '@/hooks/useSuperAdmin';
+import { useIsPlatformAdmin, BILLING_STATUS_META } from '@/hooks/useSuperAdmin';
+import { useBillingAccount } from '@/hooks/useBillingAccount';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 
 // An org admin's job is administering the organisation itself, not
@@ -20,9 +21,10 @@ export default function OrgAdminDashboard() {
   const { data: invitations, isLoading: invitesLoading } = useOrgInvitations();
   const { data: recentAudit, isLoading: auditLoading } = useAuditLog({}, 0);
   const { data: isPlatformAdmin } = useIsPlatformAdmin();
+  const { data: billing, isLoading: billingLoading } = useBillingAccount();
 
   const pendingInvites = (invitations ?? []).filter((i) => i.status === 'pending');
-  const isLoading = membersLoading || invitesLoading || auditLoading;
+  const isLoading = membersLoading || invitesLoading || auditLoading || billingLoading;
 
   return (
     <div className="px-4 pt-6 pb-6">
@@ -57,7 +59,13 @@ export default function OrgAdminDashboard() {
             title="Audit Log"
             detail={`${recentAudit?.entries.length ?? 0} recent event${(recentAudit?.entries.length ?? 0) === 1 ? '' : 's'}`}
           />
-          <AdminLink to="/ops/admin/settings" icon={Settings} title="Organisation Settings" detail="Industry mode, enabled modules, billing" />
+          <AdminLink to="/ops/admin/settings" icon={Settings} title="Organisation Settings" detail="Industry mode, enabled modules" />
+          <AdminLink
+            to="/ops/admin/billing"
+            icon={CreditCard}
+            title="Billing"
+            detail={billing ? `${billing.plan} · ${BILLING_STATUS_META[billing.status]?.label ?? billing.status}` : 'No billing account'}
+          />
           {isPlatformAdmin && (
             <AdminLink to="/ops/admin/super-admin" icon={ShieldAlert} title="Platform Administration" detail="Cross-organisation visibility" />
           )}
