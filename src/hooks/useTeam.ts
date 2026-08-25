@@ -20,7 +20,7 @@ export function useOrgMembers() {
     queryFn: async (): Promise<OrgMember[]> => {
       const { data, error } = await supabase
         .from('organisation_members')
-        .select('id, profile_id, role, joined_at, invited_at, profiles(full_name)')
+        .select('id, profile_id, role, joined_at, invited_at, profiles!organisation_members_profile_id_fkey(full_name)')
         .eq('organisation_id', org!.organisation_id)
         .order('invited_at');
       if (error) throw error;

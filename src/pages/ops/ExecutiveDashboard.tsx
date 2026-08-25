@@ -19,10 +19,10 @@ import { cn } from '@/lib/utils';
 // confident zero.
 export default function ExecutiveDashboard() {
   const { data: org } = useOrganisation();
-  const { data: assets, isLoading: assetsLoading } = useAssets();
-  const { data: workOrders, isLoading: woLoading } = useWorkOrders();
-  const { data: incidents, isLoading: incidentsLoading } = useIncidents();
-  const { data: members, isLoading: membersLoading } = useOrgMembers();
+  const { data: assets, isLoading: assetsLoading, isError: assetsError } = useAssets();
+  const { data: workOrders, isLoading: woLoading, isError: woError } = useWorkOrders();
+  const { data: incidents, isLoading: incidentsLoading, isError: incidentsError } = useIncidents();
+  const { data: members, isLoading: membersLoading, isError: membersError } = useOrgMembers();
 
   const isLoading = assetsLoading || woLoading || incidentsLoading || membersLoading;
   const openWorkOrders = (workOrders ?? []).filter((w) => w.status !== 'completed' && w.status !== 'cancelled');
@@ -47,10 +47,10 @@ export default function ExecutiveDashboard() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-3">
-        <Tile icon={Truck} label="Assets" value={assets?.length ?? 0} sub={`${activeAssets.length} active`} />
-        <Tile icon={Wrench} label="Open work orders" value={openWorkOrders.length} sub={`${completedThisPeriod.length} completed`} />
-        <Tile icon={AlertTriangle} label="Open incidents" value={openIncidents.length} danger={openIncidents.length > 0} />
-        <Tile icon={Users} label="Team members" value={members?.length ?? 0} />
+        <Tile icon={Truck} label="Assets" value={assetsError ? null : (assets?.length ?? 0)} sub={`${activeAssets.length} active`} />
+        <Tile icon={Wrench} label="Open work orders" value={woError ? null : openWorkOrders.length} sub={`${completedThisPeriod.length} completed`} />
+        <Tile icon={AlertTriangle} label="Open incidents" value={incidentsError ? null : openIncidents.length} danger={openIncidents.length > 0} />
+        <Tile icon={Users} label="Team members" value={membersError ? null : (members?.length ?? 0)} />
       </div>
 
       <div className="card !py-4 mb-3">
@@ -71,16 +71,22 @@ export default function ExecutiveDashboard() {
 function Tile({
   icon: Icon, label, value, sub, danger,
 }: {
-  icon: React.ComponentType<{ className?: string }>; label: string; value: number; sub?: string; danger?: boolean;
+  icon: React.ComponentType<{ className?: string }>; label: string; value: number | null; sub?: string; danger?: boolean;
 }) {
+  const failed = value === null;
   return (
     <div className={cn('card !py-3', danger && 'border-danger/40')}>
       <div className="flex items-center gap-1.5 mb-0.5">
         <Icon className="w-3.5 h-3.5 text-gray-400" />
         <p className="text-xs text-gray-500 dark:text-gray-400">{label}</p>
       </div>
-      <p className={cn('font-heading font-bold text-lg', danger && 'text-danger')}>{value}</p>
-      {sub && <p className="text-xs text-gray-400">{sub}</p>}
+      <p
+        className={cn('font-heading font-bold text-lg', danger && !failed && 'text-danger', failed && 'text-gray-400')}
+        title={failed ? 'Could not load this figure' : undefined}
+      >
+        {failed ? '—' : value}
+      </p>
+      {sub && !failed && <p className="text-xs text-gray-400">{sub}</p>}
     </div>
   );
 }
