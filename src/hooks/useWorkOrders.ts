@@ -194,6 +194,37 @@ export function useUpdateWorkOrderStatus() {
   });
 }
 
+// Sets who a work order belongs to. Previously nothing in the app wrote
+// assignee_profile_id at all -- it only ever showed up read-only, so it
+// stayed null forever and "My Work" (useMyWorkOrders) had nothing to
+// match against. Passing null clears the assignee (unassign). When a
+// work order is still in 'pending', assigning someone also advances it
+// to 'assigned' -- mirrors the same transition WORK_ORDER_NEXT_STATUS
+// already encodes for the manual "Mark as" button.
+export function useAssignWorkOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, assigneeProfileId, currentStatus }: { id: string; assigneeProfileId: string | null; currentStatus: WorkOrderStatus }) => {
+      const advanceStatus = assigneeProfileId && currentStatus === 'pending';
+      const { error } = await supabase
+        .from('work_orders')
+        .update({
+          assignee_profile_id: assigneeProfileId,
+          ...(advanceStatus ? { status: 'assigned' as WorkOrderStatus } : {}),
+        })
+        .eq('id', id);
+      if (error) throw error;
+      return { id };
+    },
+    onSuccess: ({ id }) => {
+      qc.invalidateQueries({ queryKey: ['ops', 'work-orders'] });
+      qc.invalidateQueries({ queryKey: ['ops', 'work-order', id] });
+      qc.invalidateQueries({ queryKey: ['ops', 'my-work-orders'] });
+      qc.invalidateQueries({ queryKey: ['ops', 'asset-work-orders'] });
+    },
+  });
+}
+
 export const WORK_ORDER_CATEGORY_LABELS: Record<WorkOrderCategory, string> = {
   breakdown: 'Breakdown',
   maintenance: 'Maintenance',

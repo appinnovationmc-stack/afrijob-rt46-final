@@ -1,9 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Wrench, Boxes, Timer, FileText, AlertTriangle, History } from 'lucide-react';
 import {
-  useWorkOrder, useUpdateWorkOrderStatus, useWorkOrderSlaBreaches, useWorkOrderIncidents,
+  useWorkOrder, useUpdateWorkOrderStatus, useAssignWorkOrder, useWorkOrderSlaBreaches, useWorkOrderIncidents,
   WORK_ORDER_CATEGORY_LABELS, WORK_ORDER_PRIORITY_META, WORK_ORDER_SOURCE_LABELS, WORK_ORDER_NEXT_STATUS,
 } from '@/hooks/useWorkOrders';
+import { useOrgMembers } from '@/hooks/useTeam';
 import { useWorkOrderParts } from '@/hooks/useWorkOrderParts';
 import { useVaultDocuments } from '@/hooks/useAfriops';
 import { useAuditLog, AUDIT_ACTION_LABELS } from '@/hooks/useAuditLog';
@@ -39,7 +40,9 @@ export default function WorkOrderDetail() {
   const { data: incidents } = useWorkOrderIncidents(workOrderId);
   const { data: documents } = useVaultDocuments('work_order', workOrderId);
   const { data: auditLog } = useAuditLog({ entityType: 'work_order', entityId: workOrderId }, 0);
+  const { data: orgMembers } = useOrgMembers();
   const updateStatus = useUpdateWorkOrderStatus();
+  const assignWorkOrder = useAssignWorkOrder();
   const push = useToastStore((s) => s.push);
 
   if (isLoading) {
@@ -107,7 +110,28 @@ export default function WorkOrderDetail() {
         <h2 className="font-heading font-bold text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">Details</h2>
         {assetLabel && <Row label="Asset" value={assetLabel} />}
         <Row label="Site" value={wo.site?.name} />
-        <Row label="Assignee" value={wo.assignee?.full_name} />
+        <div className="flex justify-between items-center py-1 border-b border-gray-100 dark:border-charcoal-light last:border-0 gap-2">
+          <span className="text-gray-500 dark:text-gray-400">Assignee</span>
+          <select
+            className="input !py-1 !h-auto text-sm text-right max-w-[60%]"
+            value={wo.assignee?.id ?? ''}
+            disabled={assignWorkOrder.isPending}
+            onChange={async (e) => {
+              const assigneeProfileId = e.target.value || null;
+              try {
+                await assignWorkOrder.mutateAsync({ id: wo.id, assigneeProfileId, currentStatus: wo.status });
+                push(assigneeProfileId ? 'Assignee updated' : 'Unassigned', 'success');
+              } catch (err: any) {
+                push(err.message ?? 'Failed to update assignee', 'error');
+              }
+            }}
+          >
+            <option value="">Unassigned</option>
+            {orgMembers?.map((m) => (
+              <option key={m.profile_id} value={m.profile_id}>{m.profile_name ?? 'Unnamed'}</option>
+            ))}
+          </select>
+        </div>
         <Row label="Requester" value={wo.requester?.full_name} />
         <Row label="Service provider" value={wo.service_provider?.trading_name} />
         <Row label="Estimated value" value={wo.estimated_value != null ? formatCurrencyZAR(wo.estimated_value) : null} />
