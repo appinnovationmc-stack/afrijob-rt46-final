@@ -1,9 +1,10 @@
-import { LineChart, Truck, Wrench, AlertTriangle, Users, DollarSign } from 'lucide-react';
+import { LineChart, Truck, Wrench, AlertTriangle, Users, DollarSign, Shield } from 'lucide-react';
 import { useAssets } from '@/hooks/useAssetRegistry';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useOrgMembers } from '@/hooks/useTeam';
 import { useOrganisation, INDUSTRY_LABELS } from '@/hooks/useOrganisation';
+import { AdminLinksSection } from '@/components/layout/AdminLinksSection';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { cn } from '@/lib/utils';
@@ -63,6 +64,19 @@ export default function ExecutiveDashboard() {
           title="No cost data recorded yet"
           description="Work order and parts costs aren't being captured in production yet, so spend figures aren't shown here rather than displaying an inaccurate zero. This fills in automatically once cost data starts flowing through work orders and purchase orders."
         />
+      </div>
+
+      {/* 'owner' outranks 'admin' but previously had no in-app path to
+          Team/Billing/Settings/Permissions/etc — those links only lived
+          on OrgAdminDashboard, which owners never render. Same shared
+          section as that dashboard, so an owner can actually administer
+          the org without knowing a URL to type. */}
+      <div className="mb-3">
+        <div className="flex items-center gap-2 mb-1">
+          <Shield className="w-4 h-4 text-gray-400" />
+          <h2 className="font-heading font-bold text-sm text-gray-500 dark:text-gray-400 uppercase tracking-wide">Organisation Administration</h2>
+        </div>
+        <AdminLinksSection />
       </div>
     </div>
   );
