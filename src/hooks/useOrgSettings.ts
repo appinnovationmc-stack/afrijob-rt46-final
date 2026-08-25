@@ -44,7 +44,7 @@ export function useUpdateOrgSettings() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'organisation'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'organisation-memberships'] }),
   });
 }
 
@@ -62,6 +62,6 @@ export function useUpdateOrgName() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'organisation'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'organisation-memberships'] }),
   });
 }
