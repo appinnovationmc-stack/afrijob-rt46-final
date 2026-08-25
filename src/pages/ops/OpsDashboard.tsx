@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   Boxes, ShoppingCart, FolderLock, AlertTriangle, CalendarClock, Gauge as GaugeIcon,
-  ChevronRight, Bell, PackageX, ShieldAlert, Car, Users, Wrench, History,
+  ChevronRight, Bell, PackageX, ShieldAlert, Car, Wrench,
 } from 'lucide-react';
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 import TechnicianDashboard from '@/pages/ops/TechnicianDashboard';
@@ -52,14 +52,15 @@ const NAV_ITEMS = [
   { to: '/ops/notifications', label: 'Notifications', description: 'Alerts, preferences, channels', icon: Bell, moduleKey: 'notifications' },
 ];
 
+// Team & Roles / Audit Log used to be listed here too (gated on
+// org.manage_members), but that permission is only ever granted to
+// 'owner' and 'admin' — and both of those roles always render their own
+// dedicated dashboard (ExecutiveDashboard / OrgAdminDashboard, both of
+// which use AdminLinksSection) instead of ever reaching this generic
+// fallback. So those two entries could never actually render here —
+// removed as dead code rather than left in to imply they might show up.
 const ADMIN_NAV_ITEMS = [
   { to: '/ops/admin/assets', label: 'Asset Registry', description: 'Sites, business units, asset types, assets', icon: Car, permission: 'assets.create' },
-  { to: '/ops/admin/team', label: 'Team & Roles', description: 'Members and access levels', icon: Users, permission: 'org.manage_members' },
-  // Same permission the audit_log RLS policy itself checks
-  // ("org members can view audit log for their org" → org.manage_members)
-  // — the nav gate matches the actual DB-enforced boundary, not a
-  // separate client-side guess at who should see it.
-  { to: '/ops/admin/audit', label: 'Audit Log', description: 'Every recorded change across the organisation', icon: History, permission: 'org.manage_members' },
 ];
 
 export default function OpsDashboard() {

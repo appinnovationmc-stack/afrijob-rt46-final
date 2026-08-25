@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Boxes, ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react';
 import { useInventoryItems, useCreateInventoryItem, useRecordInventoryMovement, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useSiteOptions } from '@/hooks/useAssetSitePickers';
+import { usePermissions } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FAB } from '@/components/ui/FAB';
@@ -120,6 +121,14 @@ export default function Inventory() {
   const { data: items, isLoading } = useInventoryItems();
   const [showNew, setShowNew] = useState(false);
   const [movementItem, setMovementItem] = useState<InventoryItem | null>(null);
+  const { can } = usePermissions();
+  // inventory_items_write RLS requires inventory.manage; inventory_movements_write
+  // requires inventory.issue — mirrored here so viewer/contractor (neither has
+  // either permission) and roles without inventory.manage (technician, member,
+  // inspector) see a page that matches what they can actually do, instead of a
+  // button that fails against RLS.
+  const canManage = can('inventory.manage');
+  const canIssue = can('inventory.issue');
 
   return (
     <div className="px-4 pt-6 pb-24">
@@ -161,21 +170,23 @@ export default function Inventory() {
                 {item.unit_cost !== null && (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Unit cost: {formatCurrencyZAR(item.unit_cost)}</p>
                 )}
-                <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <button className="btn-secondary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5" onClick={() => setMovementItem(item)}>
-                    <ArrowDownCircle className="w-4 h-4" /> Receive
-                  </button>
-                  <button className="btn-secondary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5" onClick={() => setMovementItem(item)}>
-                    <ArrowUpCircle className="w-4 h-4" /> Issue
-                  </button>
-                </div>
+                {canIssue && (
+                  <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <button className="btn-secondary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5" onClick={() => setMovementItem(item)}>
+                      <ArrowDownCircle className="w-4 h-4" /> Receive
+                    </button>
+                    <button className="btn-secondary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5" onClick={() => setMovementItem(item)}>
+                      <ArrowUpCircle className="w-4 h-4" /> Issue
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      <FAB onClick={() => setShowNew(true)} label="New item" />
+      {canManage && <FAB onClick={() => setShowNew(true)} label="New item" />}
       {showNew && <NewItemModal onClose={() => setShowNew(false)} />}
       {movementItem && <MovementModal item={movementItem} onClose={() => setMovementItem(null)} />}
     </div>

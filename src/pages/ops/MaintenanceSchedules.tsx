@@ -6,7 +6,7 @@ import {
   isOverdue, daysUntilDue, TRIGGER_TYPE_LABELS,
 } from '@/hooks/useMaintenanceSchedules';
 import { useAssetOptions } from '@/hooks/useAssetSitePickers';
-import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
+import { useOrganisation, INDUSTRY_CONFIG, usePermissions } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FAB } from '@/components/ui/FAB';
@@ -85,6 +85,12 @@ export default function MaintenanceSchedules() {
   const runDue = useRunDueMaintenanceSchedules();
   const push = useToastStore((s) => s.push);
   const [showNew, setShowNew] = useState(false);
+  const { can } = usePermissions();
+  // maintenance_schedules_insert/update/delete RLS all require
+  // maintenance.manage — mirrored here so technician/member/inspector/
+  // viewer/contractor (none of whom have it, only maintenance.view) see a
+  // page matching what they can do instead of buttons that fail on RLS.
+  const canManage = can('maintenance.manage');
 
   return (
     <div className="px-4 pt-6 pb-24">
@@ -95,6 +101,7 @@ export default function MaintenanceSchedules() {
         Time, meter or date-based schedules. Triggering creates a work order and rolls the next due date forward.
       </p>
 
+      {canManage && (
       <button
         className="btn-secondary w-full mb-5 text-sm"
         disabled={runDue.isPending}
@@ -109,6 +116,7 @@ export default function MaintenanceSchedules() {
       >
         Run due-schedule sweep now
       </button>
+      )}
 
       {isLoading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <SkeletonCard key={i} />)}</div>
@@ -134,42 +142,44 @@ export default function MaintenanceSchedules() {
                 <p className={cn('text-xs mb-3', overdue ? 'text-danger font-semibold' : 'text-gray-500 dark:text-gray-400')}>
                   {s.next_due_at ? (overdue ? `Overdue by ${Math.abs(days ?? 0)}d (was due ${formatDate(s.next_due_at)})` : `Due in ${days}d (${formatDate(s.next_due_at)})`) : 'No due date computed yet'}
                 </p>
-                <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
-                  <button
-                    className="btn-secondary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5"
-                    disabled={setActive.isPending}
-                    onClick={async () => {
-                      try {
-                        await setActive.mutateAsync({ scheduleId: s.id, active: !s.active });
-                      } catch (e: any) {
-                        push(e.message ?? 'Failed to update', 'error');
-                      }
-                    }}
-                  >
-                    <Power className="w-4 h-4" /> {s.active ? 'Pause' : 'Resume'}
-                  </button>
-                  <button
-                    className="btn-primary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5"
-                    disabled={triggerNow.isPending}
-                    onClick={async () => {
-                      try {
-                        await triggerNow.mutateAsync({ scheduleId: s.id });
-                        push('Work order created', 'success');
-                      } catch (e: any) {
-                        push(e.message ?? 'Failed to trigger', 'error');
-                      }
-                    }}
-                  >
-                    <Play className="w-4 h-4" /> Trigger now
-                  </button>
-                </div>
+                {canManage && (
+                  <div className="flex gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <button
+                      className="btn-secondary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5"
+                      disabled={setActive.isPending}
+                      onClick={async () => {
+                        try {
+                          await setActive.mutateAsync({ scheduleId: s.id, active: !s.active });
+                        } catch (e: any) {
+                          push(e.message ?? 'Failed to update', 'error');
+                        }
+                      }}
+                    >
+                      <Power className="w-4 h-4" /> {s.active ? 'Pause' : 'Resume'}
+                    </button>
+                    <button
+                      className="btn-primary flex-1 text-sm !py-2 flex items-center justify-center gap-1.5"
+                      disabled={triggerNow.isPending}
+                      onClick={async () => {
+                        try {
+                          await triggerNow.mutateAsync({ scheduleId: s.id });
+                          push('Work order created', 'success');
+                        } catch (e: any) {
+                          push(e.message ?? 'Failed to trigger', 'error');
+                        }
+                      }}
+                    >
+                      <Play className="w-4 h-4" /> Trigger now
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
-      <FAB onClick={() => setShowNew(true)} label="New schedule" />
+      {canManage && <FAB onClick={() => setShowNew(true)} label="New schedule" />}
       {showNew && <NewScheduleModal onClose={() => setShowNew(false)} />}
     </div>
   );

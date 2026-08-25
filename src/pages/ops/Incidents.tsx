@@ -8,6 +8,8 @@ import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FAB } from '@/components/ui/FAB';
 import { useToastStore } from '@/components/ui/Toast';
+import { usePermissions } from '@/hooks/useOrganisation';
+import { useAuthStore } from '@/store/authStore';
 import { cn, formatDate } from '@/lib/utils';
 import type { IncidentCategory, IncidentSeverity, IncidentStatus } from '@/lib/afriops/types';
 
@@ -82,6 +84,14 @@ export default function Incidents() {
   const updateStatus = useUpdateIncidentStatus();
   const push = useToastStore((s) => s.push);
   const [showReport, setShowReport] = useState(false);
+  const { can } = usePermissions();
+  const userId = useAuthStore((s) => s.user?.id);
+  // Mirrors incidents_insert (requires incidents.report) and incidents_update
+  // (incidents.manage, OR incidents.report + reporter + still 'reported') so
+  // viewer/contractor — the only two roles without incidents.report — don't
+  // see a "Report incident" button that would fail against RLS.
+  const canReport = can('incidents.report');
+  const canManage = can('incidents.manage');
 
   return (
     <div className="px-4 pt-6 pb-24">
@@ -111,7 +121,7 @@ export default function Incidents() {
                   </div>
                 </div>
                 <p className="text-sm mb-3">{inc.description}</p>
-                {next && (
+                {next && (canManage || (canReport && inc.reported_by === userId && inc.status === 'reported')) && (
                   <button
                     className="btn-secondary w-full text-sm !py-2"
                     disabled={updateStatus.isPending}
@@ -133,7 +143,7 @@ export default function Incidents() {
         </div>
       )}
 
-      <FAB onClick={() => setShowReport(true)} label="Report incident" />
+      {canReport && <FAB onClick={() => setShowReport(true)} label="Report incident" />}
       {showReport && <ReportModal onClose={() => setShowReport(false)} />}
     </div>
   );
