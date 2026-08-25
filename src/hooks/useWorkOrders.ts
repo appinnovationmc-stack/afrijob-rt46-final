@@ -214,7 +214,7 @@ export const WORK_ORDER_PRIORITY_META: Record<WorkOrderPriority, { label: string
 // Same source-honesty pattern already used in AssetDetail.tsx's Work Orders
 // tab — 'afrijob' and 'rt46' are the workshop/RT46 flows that bridge into
 // this table, 'native' means it was created directly here.
-export const WORK_ORDER_SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriJob', rt46: 'RT46', native: 'Ops' };
+export const WORK_ORDER_SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriOps', rt46: 'RT46', native: 'Ops' };
 
 // The forward-only status progression a work order can be manually pushed
 // through from this UI. Not every transition is linear in reality (e.g.

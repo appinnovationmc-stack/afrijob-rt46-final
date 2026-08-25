@@ -22,7 +22,7 @@ export default function WorkOrderList() {
     <div className="px-4 pt-6 pb-24">
       <h1 className="font-heading font-bold text-2xl mb-1">Work Orders</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Every work order across AfriJob, RT46, and Ops in one place.
+        Every work order across AfriOps, RT46, and Ops in one place.
       </p>
 
       <div className="flex gap-1 overflow-x-auto mb-4 -mx-4 px-4">

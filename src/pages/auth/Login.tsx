@@ -43,7 +43,7 @@ export default function Login() {
         <div className="w-16 h-16 rounded-2xl bg-brand flex items-center justify-center mb-4">
           <Wrench className="w-8 h-8 text-white" />
         </div>
-        <h1 className="font-heading font-bold text-2xl">AfriJob</h1>
+        <h1 className="font-heading font-bold text-2xl">AfriOps</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Merchant Network Support</p>
       </div>
 

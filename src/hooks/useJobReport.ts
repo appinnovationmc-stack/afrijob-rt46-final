@@ -89,7 +89,7 @@ export function useJobReport(jobId: string | undefined) {
       ).toBlob();
 
       const base64 = await blobToBase64(blob);
-      const fileName = `AfriJob-${job.vehicle_registration.replace(/\s+/g, '')}-${Date.now()}.pdf`;
+      const fileName = `AfriOps-${job.vehicle_registration.replace(/\s+/g, '')}-${Date.now()}.pdf`;
 
       // Upload to storage so the report is retrievable later from the job record.
       const storagePath = `reports/${job.id}/${fileName}`;
@@ -107,7 +107,7 @@ export function useJobReport(jobId: string | undefined) {
       const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
       await Share.share({
         title: `Job Report — ${job.vehicle_registration}`,
-        text: `AfriJob report for ${job.vehicle_registration}`,
+        text: `AfriOps report for ${job.vehicle_registration}`,
         url: written.uri,
         dialogTitle: 'Share job report',
       });

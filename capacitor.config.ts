@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.maobane.afrijob',
-  appName: 'AfriJob',
+  appName: 'AfriOps',
   webDir: 'dist',
   backgroundColor: '#1A1A1A',
   plugins: {

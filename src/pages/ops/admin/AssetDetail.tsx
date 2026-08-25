@@ -42,7 +42,7 @@ const AUDIT_SEVERITY_STYLES: Record<AuditSeverity, string> = {
 // this per row is the point: it's a single history that's honest about
 // where each item originated, rather than hiding the seam or pretending
 // there's only ever been one system.
-const SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriJob', rt46: 'RT46', native: 'Ops' };
+const SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriOps', rt46: 'RT46', native: 'Ops' };
 
 // Same idea as SOURCE_LABELS but for the Parts tab: work_order_parts_unified
 // rows carry `source` = 'job_parts' (recorded via a workshop job's Parts &

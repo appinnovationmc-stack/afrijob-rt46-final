@@ -38,7 +38,7 @@ export function AppShell() {
           <NotificationBell />
         </div>
       </div>
-      <main className="flex-1 pb-24">
+      <main className="flex-1 pb-40">
         <Outlet />
       </main>
       <BottomNav />

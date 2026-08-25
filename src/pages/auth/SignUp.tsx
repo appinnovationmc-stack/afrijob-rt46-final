@@ -63,7 +63,7 @@ export default function SignUp() {
   return (
     <div className="min-h-screen flex flex-col justify-center px-6 py-12">
       <h1 className="font-heading font-bold text-2xl mb-1">Create your account</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Set up your workshop on AfriJob</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-8">Set up your workshop on AfriOps</p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
         <div>

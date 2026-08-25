@@ -32,7 +32,7 @@ function Kpi({ label, value, tone = 'default', icon: Icon }: { label: string; va
 
 const NAV_ITEMS = [
   { to: '/ops/intelligence', label: 'Operational Intelligence', description: 'Live exceptions and recommended actions', icon: Lightbulb, moduleKey: 'intelligence' },
-  { to: '/ops/work-orders', label: 'Work Orders', description: 'Every work order across AfriJob, RT46, and Ops', icon: Wrench, moduleKey: 'work_orders' },
+  { to: '/ops/work-orders', label: 'Work Orders', description: 'Every work order across AfriOps, RT46, and Ops', icon: Wrench, moduleKey: 'work_orders' },
   { to: '/ops/inventory', label: 'Inventory', description: 'Stock levels, movements, reorder points', icon: Boxes, moduleKey: 'inventory' },
   { to: '/ops/procurement', label: 'Procurement', description: 'Suppliers, purchase orders, receiving', icon: ShoppingCart, moduleKey: 'procurement' },
   { to: '/ops/documents', label: 'Document Vault', description: 'Compliance docs, expiry tracking, verification', icon: FolderLock, moduleKey: 'documents' },
