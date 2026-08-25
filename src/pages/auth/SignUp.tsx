@@ -34,6 +34,13 @@ export default function SignUp() {
       return;
     }
 
+    if (data.user.identities?.length === 0) {
+      setLoading(false);
+      push('You already have an account -- sign in instead.', 'error');
+      navigate('/login', { replace: true });
+      return;
+    }
+
     // If email confirmation is required, signUp() returns a user but no
     // active session — there's nothing authenticated yet, so we can't
     // create the workshop now (RLS needs auth.uid()). Stash the name and
