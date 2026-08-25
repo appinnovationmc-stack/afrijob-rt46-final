@@ -1,8 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
+import { useActiveOrgStore } from '@/store/activeOrgStore';
 import { supabase } from '@/lib/supabase';
 import type { OrganisationRole } from '@/lib/afriops/types';
 import type { Json } from '@/types/database.types';
+
+// When a profile belongs to multiple organisations, this decides which one
+// is picked automatically (only used until the person explicitly switches,
+// see useActiveOrgStore). Ranked so the membership that gives the most
+// administrative control surfaces by default, rather than whatever order
+// Postgres happens to return.
+const ROLE_DEFAULT_PRIORITY: OrganisationRole[] = [
+  'owner', 'admin', 'manager', 'operations_manager', 'fleet_manager',
+  'supervisor', 'finance', 'procurement_officer', 'inspector', 'contractor',
+  'member', 'technician', 'viewer',
+];
+
+function rankRole(role: OrganisationRole): number {
+  const i = ROLE_DEFAULT_PRIORITY.indexOf(role);
+  return i === -1 ? ROLE_DEFAULT_PRIORITY.length : i;
+}
 
 export type IndustryMode = 'general' | 'mining' | 'fleet' | 'municipal' | 'government' | 'logistics';
 
@@ -136,6 +153,8 @@ export interface OrganisationMembership {
   organisation_name: string;
   industry_mode: IndustryMode;
   enabled_modules: Json;
+  /** True when this profile has more than one organisation membership. */
+  has_multiple_memberships: boolean;
 }
 
 // Returns whether a module should be shown for this organisation.
@@ -164,37 +183,83 @@ export function isModuleEnabled(enabledModules: Json | null | undefined, moduleK
   return true;
 }
 
-// Resolves the current profile's organisation membership. Mirrors the
-// single-workshop-per-user assumption already made in App.tsx for the legacy
-// workshop model — takes the first membership found. If/when a user can
-// belong to multiple organisations, this is the one place to add an org
-// switcher; every ops hook and page below reads through this hook so nothing
-// else needs to change.
-export function useOrganisation() {
+interface RawMembershipRow {
+  organisation_id: string;
+  role: OrganisationRole;
+  invited_at: string | null;
+  joined_at: string | null;
+  organisations: { name: string; industry_mode: IndustryMode; enabled_modules: Json } | null;
+}
+
+function toMembership(row: RawMembershipRow, hasMultiple: boolean): OrganisationMembership {
+  return {
+    organisation_id: row.organisation_id,
+    role: row.role,
+    organisation_name: row.organisations?.name ?? 'Organisation',
+    industry_mode: row.organisations?.industry_mode ?? 'general',
+    enabled_modules: row.organisations?.enabled_modules ?? null,
+    has_multiple_memberships: hasMultiple,
+  };
+}
+
+// All of a profile's organisation memberships, for building an org switcher.
+// Sorted by the same deterministic default order useOrganisation() uses, so
+// "first in this list" always matches "what useOrganisation() picks by
+// default" instead of the two silently disagreeing.
+export function useOrganisationMemberships() {
   const userId = useAuthStore((s) => s.user?.id);
 
   return useQuery({
-    queryKey: ['ops', 'organisation', userId],
+    queryKey: ['ops', 'organisation-memberships', userId],
     enabled: !!userId,
     staleTime: 5 * 60_000,
-    queryFn: async (): Promise<OrganisationMembership | null> => {
+    queryFn: async (): Promise<OrganisationMembership[]> => {
       const { data, error } = await supabase
         .from('organisation_members')
-        .select('organisation_id, role, organisations(name, industry_mode, enabled_modules)')
-        .eq('profile_id', userId!)
-        .limit(1)
-        .maybeSingle();
+        .select('organisation_id, role, invited_at, joined_at, organisations(name, industry_mode, enabled_modules)')
+        .eq('profile_id', userId!);
       if (error) throw error;
-      if (!data) return null;
-      return {
-        organisation_id: data.organisation_id,
-        role: data.role as OrganisationRole,
-        organisation_name: (data as any).organisations?.name ?? 'Organisation',
-        industry_mode: ((data as any).organisations?.industry_mode ?? 'general') as IndustryMode,
-        enabled_modules: (data as any).organisations?.enabled_modules ?? null,
-      };
+      const rows = (data ?? []) as unknown as RawMembershipRow[];
+      const sorted = [...rows].sort((a, b) => {
+        const roleDiff = rankRole(a.role) - rankRole(b.role);
+        if (roleDiff !== 0) return roleDiff;
+        // Tie-broken by whichever membership has existed longest, so the
+        // default doesn't shuffle as new invites are accepted later.
+        const aTime = a.joined_at ?? a.invited_at ?? '';
+        const bTime = b.joined_at ?? b.invited_at ?? '';
+        return aTime.localeCompare(bTime);
+      });
+      return sorted.map((row) => toMembership(row, rows.length > 1));
     },
   });
+}
+
+// Resolves the profile's CURRENT organisation membership: the one explicitly
+// selected via useActiveOrgStore if it's still valid, otherwise a
+// deterministic default (see ROLE_DEFAULT_PRIORITY) rather than whatever row
+// Postgres happened to return first. Every ops hook and page reads through
+// this hook, so switching orgs here is all that's needed anywhere else.
+export function useOrganisation() {
+  const activeOrgId = useActiveOrgStore((s) => s.activeOrgId);
+  const memberships = useOrganisationMemberships();
+
+  const resolved: OrganisationMembership | null = (() => {
+    const list = memberships.data;
+    if (!list || list.length === 0) return null;
+    if (activeOrgId) {
+      const match = list.find((m) => m.organisation_id === activeOrgId);
+      if (match) return match;
+    }
+    // No stored selection (or it no longer applies, e.g. removed from that
+    // org) — list is already sorted by ROLE_DEFAULT_PRIORITY, so [0] is the
+    // deterministic default.
+    return list[0];
+  })();
+
+  return {
+    ...memberships,
+    data: resolved,
+  };
 }
 
 // Ranks are coarse and deliberately mirror the role_permissions seed
