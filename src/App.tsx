@@ -24,6 +24,7 @@ import Rt46FraudFlags from '@/pages/rt46/Rt46FraudFlags';
 import Rt46Compliance from '@/pages/rt46/Rt46Compliance';
 import Rt46Quality from '@/pages/rt46/Rt46Quality';
 import OpsDashboard from '@/pages/ops/OpsDashboard';
+import OperationalIntelligence from '@/pages/ops/OperationalIntelligence';
 import WorkOrderList from '@/pages/ops/WorkOrderList';
 import WorkOrderDetail from '@/pages/ops/WorkOrderDetail';
 import Inventory from '@/pages/ops/Inventory';
@@ -67,12 +68,6 @@ export default function App() {
   );
 }
 
-// Split out from App so every hook here (useAcceptInvitation in
-// particular, which calls useMutation internally) runs *inside*
-// QueryClientProvider rather than during App's own render, before the
-// provider exists. Calling a react-query hook before its provider is
-// mounted throws immediately on render — with no error boundary in this
-// app, that showed up as a blank white screen with no visible error.
 function AppContent() {
   const init = useAuthStore((s) => s.init);
   const profile = useAuthStore((s) => s.profile);
@@ -85,12 +80,6 @@ function AppContent() {
     return () => cleanup?.();
   }, [init]);
 
-  // Picks up a workshop name stashed by SignUp when email confirmation was
-  // required (no session was available at signup time to satisfy the RLS
-  // insert check) — creates it the first time we see an authenticated
-  // profile with no workshops yet. Also picks up a pending invite token
-  // stashed by AcceptInvite.tsx for the same reason (signup needed to
-  // happen first) so the person doesn't have to reopen the invite link.
   useEffect(() => {
     if (!profile?.id) return;
     const pendingInviteToken = getPendingInviteToken();
@@ -124,13 +113,7 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
-          <Route
-            element={
-              <RequireAuth>
-                <AppShell />
-              </RequireAuth>
-            }
-          >
+          <Route element={<RequireAuth><AppShell /></RequireAuth>}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/jobs" element={<JobList />} />
             <Route path="/jobs/new" element={<NewJob />} />
@@ -146,28 +129,14 @@ function AppContent() {
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
             <Route path="/ops" element={<OpsDashboard />} />
-            <Route element={<ModuleGuard moduleKey="inventory" />}>
-              <Route path="/ops/inventory" element={<Inventory />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="procurement" />}>
-              <Route path="/ops/procurement" element={<Procurement />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="documents" />}>
-              <Route path="/ops/documents" element={<DocumentVault />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="incidents" />}>
-              <Route path="/ops/incidents" element={<Incidents />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="maintenance" />}>
-              <Route path="/ops/maintenance" element={<MaintenanceSchedules />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="sla" />}>
-              <Route path="/ops/sla" element={<SlaDashboard />} />
-            </Route>
-            <Route element={<ModuleGuard moduleKey="notifications" />}>
-              <Route path="/ops/notifications" element={<OpsNotifications />} />
-            </Route>
-            {/* work_orders is deliberately ungated — cross-source view, always shown regardless of enabled_modules (see OpsDashboard NAV_ITEMS comment) */}
+            <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
+            <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
+            <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
+            <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>
+            <Route element={<ModuleGuard moduleKey="incidents" />}><Route path="/ops/incidents" element={<Incidents />} /></Route>
+            <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
+            <Route element={<ModuleGuard moduleKey="sla" />}><Route path="/ops/sla" element={<SlaDashboard />} /></Route>
+            <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
             <Route path="/ops/work-orders" element={<WorkOrderList />} />
             <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
