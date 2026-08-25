@@ -75,12 +75,15 @@ export const ORG_ROLES: OrganisationRole[] = [
 ];
 
 // ---------- Invitations (pending, not-yet-registered users) ----------
-// Note: this creates the pending-invite row and returns its token, which is
-// enough for the org.manage_members flow to show/copy an invite link. It
-// does NOT send an email — that requires a Supabase Edge Function calling
-// an email provider, which needs to be deployed against the live project
-// and isn't something this environment can do. See
-// AFRIOPS_PRODUCTION_READINESS.md for the exact remaining step.
+// Creating an invitation (useCreateInvitation) just writes the pending
+// row and returns its token - always available as a manual copy-link
+// fallback. Actually emailing it (useSendInvitationEmail below) is a
+// separate step via the send-invitation-email edge function, which uses
+// Supabase Auth's built-in inviteUserByEmail - no third-party email
+// provider is configured or available in this environment. See that
+// edge function's source comments for the real constraints this comes
+// with (Redirect URLs allow-list, Supabase's built-in email rate limit,
+// "already registered" not being emailable this way).
 
 export interface OrgInvitation {
   id: string;
@@ -145,6 +148,47 @@ export function useRevokeInvitation() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'org-invitations'] }),
+  });
+}
+
+export type SendInvitationEmailResult =
+  | { sent: true }
+  | { sent: false; reason: 'already_registered' | 'rate_limited'; message: string };
+
+// Actually emails the invite via send-invitation-email (Supabase Auth's
+// inviteUserByEmail under the hood). Distinguishes "genuinely failed"
+// from two known, non-error outcomes the UI should treat as informational
+// rather than a failure toast: the person already has an account (email
+// can't go through this path - share the link directly instead), or
+// Supabase's built-in email sending hit its rate limit (same fallback).
+export function useSendInvitationEmail() {
+  return useMutation({
+    mutationFn: async (invitationId: string): Promise<SendInvitationEmailResult> => {
+      const { data, error } = await supabase.functions.invoke('send-invitation-email', {
+        body: { invitation_id: invitationId, redirect_origin: window.location.origin },
+      });
+      if (error) {
+        // supabase-js wraps any non-2xx edge function response in a
+        // generic FunctionsHttpError whose own .message is NOT the JSON
+        // body the function actually returned ({ error: "..." }) - that
+        // has to be read from error.context (the raw Response), or every
+        // failure here would show a useless generic message instead of
+        // the real reason (e.g. "This invitation is 'revoked', not
+        // pending").
+        let message = error.message;
+        const ctx = (error as any)?.context;
+        if (ctx && typeof ctx.json === 'function') {
+          try {
+            const body = await ctx.json();
+            if (body?.error) message = body.error;
+          } catch {
+            // response body wasn't JSON - fall back to the generic message
+          }
+        }
+        throw new Error(message);
+      }
+      return data as SendInvitationEmailResult;
+    },
   });
 }
 

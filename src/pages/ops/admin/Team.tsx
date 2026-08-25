@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Users, Info, Trash2, Copy, X } from 'lucide-react';
+import { ArrowLeft, Users, Info, Trash2, Copy, X, Mail } from 'lucide-react';
 import {
   useOrgMembers, useSetMemberRole, useRemoveMember, ORG_ROLES,
-  useOrgInvitations, useCreateInvitation, useRevokeInvitation,
+  useOrgInvitations, useCreateInvitation, useRevokeInvitation, useSendInvitationEmail,
 } from '@/hooks/useTeam';
 import { useOrganisation, usePermissions } from '@/hooks/useOrganisation';
 import { useAuthStore } from '@/store/authStore';
@@ -21,6 +21,7 @@ export default function Team() {
   const remove = useRemoveMember();
   const createInvitation = useCreateInvitation();
   const revokeInvitation = useRevokeInvitation();
+  const sendInvitationEmail = useSendInvitationEmail();
   const push = useToastStore((s) => s.push);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const canManage = can('org.manage_members');
@@ -31,15 +32,31 @@ export default function Team() {
 
   const pendingInvitations = (invitations ?? []).filter((i) => i.status === 'pending');
 
+  async function sendEmailFor(invitationId: string, email: string) {
+    try {
+      const result = await sendInvitationEmail.mutateAsync(invitationId);
+      if (result.sent) {
+        push(`Invite email sent to ${email}`, 'success');
+      } else if (result.reason === 'already_registered') {
+        push(`${email} already has an account — share the link below with them directly`, 'info');
+      } else {
+        push(`Hit today's invite-email limit — share the link below with ${email} directly`, 'info');
+      }
+    } catch (err: any) {
+      push(err.message ?? `Couldn't email the invite — share the link below instead`, 'error');
+    }
+  }
+
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
     if (!inviteEmail.trim()) return;
     try {
-      const invite = await createInvitation.mutateAsync({ email: inviteEmail, role: inviteRole });
+      const email = inviteEmail.trim();
+      const invite = await createInvitation.mutateAsync({ email, role: inviteRole });
       const link = `${window.location.origin}/accept-invite?token=${invite.token}`;
       setLastInviteLink(link);
       setInviteEmail('');
-      push('Invite created — copy the link below to send it', 'success');
+      await sendEmailFor(invite.id, email);
     } catch (err: any) {
       push(err.message ?? 'Failed to create invite', 'error');
     }
@@ -68,8 +85,9 @@ export default function Team() {
       <div className="card mb-4 flex gap-2.5 items-start bg-blue-50 dark:bg-blue-950/30 border-none">
         <Info className="w-4 h-4 text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700 dark:text-blue-300">
-          Inviting someone creates a link below that you copy and send yourself (WhatsApp, email, etc.) — automatic
-          invite emails aren't wired up yet. Whoever opens the link signs up (or signs in) and is added automatically.
+          Inviting someone tries to email them a signup link automatically. If that doesn't go through — they already
+          have an account, or we've hit today's email limit — you'll get a link here to share yourself (WhatsApp,
+          email, etc.) instead. Whoever opens the link signs up (or signs in) and is added automatically.
         </p>
       </div>
 
@@ -134,7 +152,15 @@ export default function Team() {
                   </p>
                 </div>
                 <div className="flex gap-1.5">
-                  <button className="btn-secondary !py-1.5 !px-2.5" onClick={() => copyLink(inv.token)}>
+                  <button
+                    className="btn-secondary !py-1.5 !px-2.5"
+                    title="Resend invite email"
+                    disabled={sendInvitationEmail.isPending}
+                    onClick={() => sendEmailFor(inv.id, inv.email)}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                  </button>
+                  <button className="btn-secondary !py-1.5 !px-2.5" title="Copy invite link" onClick={() => copyLink(inv.token)}>
                     <Copy className="w-3.5 h-3.5" />
                   </button>
                   <button
