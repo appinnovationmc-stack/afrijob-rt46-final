@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Boxes, ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react';
-import { useInventoryItems, useCreateInventoryItem, useRecordInventoryMovement, isBelowReorderPoint } from '@/hooks/useAfriops';
+import { useInventoryItems, useCreateInventoryItem, isBelowReorderPoint } from '@/hooks/useAfriops';
+import { useOfflineInventoryMovement } from '@/hooks/useOfflineInventoryMovement';
 import { useSiteOptions } from '@/hooks/useAssetSitePickers';
 import { usePermissions } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
@@ -11,110 +12,29 @@ import { cn, formatCurrencyZAR } from '@/lib/utils';
 import type { MovementType, InventoryItem } from '@/lib/afriops/types';
 
 function NewItemModal({ onClose }: { onClose: () => void }) {
-  const create = useCreateInventoryItem();
-  const { data: sites } = useSiteOptions();
-  const push = useToastStore((s) => s.push);
+  const create = useCreateInventoryItem(); const { data: sites } = useSiteOptions(); const push = useToastStore((s) => s.push);
   const [form, setForm] = useState({ name: '', sku: '', category: '', unit: 'each', reorder_point: '', unit_cost: '', site_id: '' });
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
-      <div className="card w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading font-bold">New inventory item</h3>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
-        </div>
-        <div className="space-y-3">
-          <input className="input" placeholder="Item name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          {!!sites?.length && (
-            <select className="input" value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })}>
-              <option value="">No specific site (org-wide)</option>
-              {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          )}
-          <div className="grid grid-cols-2 gap-3">
-            <input className="input" placeholder="SKU (optional)" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} />
-            <input className="input" placeholder="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <input className="input" placeholder="Unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} />
-            <input className="input" type="number" placeholder="Reorder pt" value={form.reorder_point} onChange={(e) => setForm({ ...form, reorder_point: e.target.value })} />
-            <input className="input" type="number" placeholder="Unit cost" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} />
-          </div>
-        </div>
-        <button
-          className="btn-primary w-full mt-4"
-          disabled={!form.name.trim() || !form.unit.trim() || create.isPending}
-          onClick={async () => {
-            try {
-              await create.mutateAsync({
-                name: form.name.trim(),
-                unit: form.unit.trim(),
-                sku: form.sku.trim() || undefined,
-                category: form.category.trim() || undefined,
-                reorder_point: form.reorder_point ? Number(form.reorder_point) : undefined,
-                unit_cost: form.unit_cost ? Number(form.unit_cost) : undefined,
-                site_id: form.site_id || undefined,
-              });
-              push('Item added', 'success');
-              onClose();
-            } catch (e: any) {
-              push(e.message ?? 'Failed to add item', 'error');
-            }
-          }}
-        >
-          Add item
-        </button>
-      </div>
+  return <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}><div className="card w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center justify-between mb-3"><h3 className="font-heading font-bold">New inventory item</h3><button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button></div>
+    <div className="space-y-3"><input className="input" placeholder="Item name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      {!!sites?.length && <select className="input" value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })}><option value="">No specific site (org-wide)</option>{sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+      <div className="grid grid-cols-2 gap-3"><input className="input" placeholder="SKU (optional)" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} /><input className="input" placeholder="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} /></div>
+      <div className="grid grid-cols-3 gap-3"><input className="input" placeholder="Unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} /><input className="input" type="number" placeholder="Reorder pt" value={form.reorder_point} onChange={(e) => setForm({ ...form, reorder_point: e.target.value })} /><input className="input" type="number" placeholder="Unit cost" value={form.unit_cost} onChange={(e) => setForm({ ...form, unit_cost: e.target.value })} /></div>
     </div>
-  );
+    <button className="btn-primary w-full mt-4" disabled={!form.name.trim() || !form.unit.trim() || create.isPending} onClick={async () => { try { await create.mutateAsync({ name: form.name.trim(), unit: form.unit.trim(), sku: form.sku.trim() || undefined, category: form.category.trim() || undefined, reorder_point: form.reorder_point ? Number(form.reorder_point) : undefined, unit_cost: form.unit_cost ? Number(form.unit_cost) : undefined, site_id: form.site_id || undefined }); push('Item added', 'success'); onClose(); } catch (e: any) { push(e.message ?? 'Failed to add item', 'error'); } }}>Add item</button>
+  </div></div>;
 }
 
 function MovementModal({ item, onClose }: { item: InventoryItem; onClose: () => void }) {
-  const record = useRecordInventoryMovement();
-  const push = useToastStore((s) => s.push);
-  const [type, setType] = useState<MovementType>('receipt');
-  const [quantity, setQuantity] = useState('');
-  const [note, setNote] = useState('');
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
-      <div className="card w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading font-bold">Record movement — {item.name}</h3>
-          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
-        </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Currently on hand: {item.quantity_on_hand} {item.unit}</p>
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          {(['receipt', 'issue', 'adjustment', 'return'] as MovementType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setType(t)}
-              className={cn('rounded-xl px-3 py-2 text-sm font-semibold capitalize', type === t ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-charcoal-light text-gray-600 dark:text-gray-300')}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        <input className="input mb-3" type="number" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-        <input className="input mb-4" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <button
-          className="btn-primary w-full"
-          disabled={!quantity || Number(quantity) <= 0 || record.isPending}
-          onClick={async () => {
-            try {
-              await record.mutateAsync({ inventory_item_id: item.id, movement_type: type, quantity: Number(quantity), note: note.trim() || undefined });
-              push('Movement recorded', 'success');
-              onClose();
-            } catch (e: any) {
-              push(e.message ?? 'Failed to record movement', 'error');
-            }
-          }}
-        >
-          Record
-        </button>
-      </div>
-    </div>
-  );
+  const record = useOfflineInventoryMovement(); const push = useToastStore((s) => s.push);
+  const [type, setType] = useState<MovementType>('receipt'); const [quantity, setQuantity] = useState(''); const [note, setNote] = useState('');
+  return <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={onClose}><div className="card w-full sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center justify-between mb-3"><h3 className="font-heading font-bold">Record movement — {item.name}</h3><button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button></div>
+    <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">Currently on hand: {item.quantity_on_hand} {item.unit}</p>
+    <div className="grid grid-cols-2 gap-2 mb-3">{(['receipt', 'issue', 'adjustment', 'return'] as MovementType[]).map((t) => <button key={t} onClick={() => setType(t)} className={cn('rounded-xl px-3 py-2 text-sm font-semibold capitalize', type === t ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-charcoal-light text-gray-600 dark:text-gray-300')}>{t}</button>)}</div>
+    <input className="input mb-3" type="number" placeholder="Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} /><input className="input mb-4" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+    <button className="btn-primary w-full" disabled={!quantity || Number(quantity) <= 0 || record.isPending} onClick={async () => { try { const queued = !navigator.onLine; await record.mutateAsync({ inventory_item_id: item.id, movement_type: type, quantity: Number(quantity), note: note.trim() || undefined }); push(queued ? 'Movement queued for sync' : 'Movement recorded', 'success'); onClose(); } catch (e: any) { push(e.message ?? 'Failed to record movement', 'error'); } }}>Record</button>
+  </div></div>;
 }
 
 export default function Inventory() {

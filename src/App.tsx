@@ -34,6 +34,7 @@ import Incidents from '@/pages/ops/Incidents';
 import MaintenanceSchedules from '@/pages/ops/MaintenanceSchedules';
 import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
+import AIAssistant from '@/pages/ops/AIAssistant';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
@@ -48,11 +49,7 @@ import AssetDetail from '@/pages/ops/admin/AssetDetail';
 import AcceptInvite, { getPendingInviteToken } from '@/pages/auth/AcceptInvite';
 import { useAcceptInvitation } from '@/hooks/useTeam';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
-  },
-});
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthStore();
@@ -62,11 +59,7 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <AppContent />
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>;
 }
 
 function AppContent() {
@@ -84,22 +77,12 @@ function AppContent() {
   useEffect(() => {
     if (!profile?.id) return;
     const pendingInviteToken = getPendingInviteToken();
-    if (pendingInviteToken) {
-      acceptInvitation.mutate(pendingInviteToken, {
-        onSettled: () => localStorage.removeItem('afrijob:pending-invite-token'),
-      });
-    }
+    if (pendingInviteToken) acceptInvitation.mutate(pendingInviteToken, { onSettled: () => localStorage.removeItem('afrijob:pending-invite-token') });
     const pendingName = localStorage.getItem('afrijob:pending-workshop-name');
-    if (!pendingName) {
-      loadWorkshops(profile.id);
-      return;
-    }
+    if (!pendingName) { loadWorkshops(profile.id); return; }
     (async () => {
-      try {
-        await createOrganisationAndWorkshop(supabase, profile.id, pendingName);
-      } catch (error) {
-        console.error('Failed to create pending workshop', error);
-      }
+      try { await createOrganisationAndWorkshop(supabase, profile.id, pendingName); }
+      catch (error) { console.error('Failed to create pending workshop', error); }
       localStorage.removeItem('afrijob:pending-workshop-name');
       await loadWorkshops(profile.id);
     })();
@@ -131,6 +114,7 @@ function AppContent() {
             </Route>
             <Route path="/ops" element={<OpsDashboard />} />
             <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
+            <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
             <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
             <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, CalendarClock, Gauge, Lightbulb, ShieldAlert, Wrench } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Brain, CalendarClock, Gauge, Lightbulb, ShieldAlert, Wrench } from 'lucide-react';
 import { useOrganisation, INDUSTRY_CONFIG, INDUSTRY_LABELS } from '@/hooks/useOrganisation';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { useIncidents } from '@/hooks/useIncidents';
@@ -73,6 +73,9 @@ export default function OperationalIntelligence() {
             <p className="text-[11px] text-gray-500 dark:text-gray-400">open work orders</p>
           </div>
         </div>
+        <Link to="/ops/intelligence/ask" className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 dark:text-brand-400">
+          <Brain className="w-3.5 h-3.5" /> Ask AfriOps Intelligence <ArrowRight className="w-3 h-3" />
+        </Link>
       </div>
 
       {isLoading ? (
