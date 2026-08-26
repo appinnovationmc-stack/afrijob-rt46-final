@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes, History, Timer } from 'lucide-react';
+import { ArrowLeft, Wrench, AlertTriangle, CalendarClock, FileText, Gauge, Boxes, History, Timer, Route as RouteIcon } from 'lucide-react';
 import {
   useAsset, useAssetWorkOrders, useAssetIncidents, useAssetMaintenanceSchedules, useAssetDocuments, useAssetSlaBreaches,
 } from '@/hooks/useAssetRegistry';
 import { useAssetParts } from '@/hooks/useWorkOrderParts';
+import { useAssetTrips, useActiveTrip, useStartTrip, useEndTrip } from '@/hooks/useTrips';
+import { useDrivers } from '@/hooks/useDrivers';
 import { useAuditLog, AUDIT_ACTION_LABELS, AUDIT_SEVERITY_LABELS, type AuditSeverity } from '@/hooks/useAuditLog';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useToastStore } from '@/components/ui/Toast';
 import {
   ComplianceStatusChip, EnumStatusChip,
   ASSET_STATUS_STYLES, ASSET_STATUS_LABELS,
@@ -17,9 +20,9 @@ import {
 import { formatDate, formatCurrencyZAR, cn } from '@/lib/utils';
 import { useOrganisation, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
 
-type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents' | 'sla' | 'audit';
+type Tab = 'overview' | 'work-orders' | 'parts' | 'maintenance' | 'incidents' | 'documents' | 'sla' | 'audit' | 'trips';
 
-const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
+const BASE_TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'overview', label: 'Overview', icon: Gauge },
   { id: 'work-orders', label: 'Work Orders', icon: Wrench },
   { id: 'parts', label: 'Parts', icon: Boxes },
@@ -29,6 +32,8 @@ const TABS: { id: Tab; label: string; icon: typeof Wrench }[] = [
   { id: 'documents', label: 'Documents', icon: FileText },
   { id: 'audit', label: 'Audit', icon: History },
 ];
+
+const TRIPS_TAB: { id: Tab; label: string; icon: typeof Wrench } = { id: 'trips', label: 'Trips', icon: RouteIcon };
 
 const AUDIT_SEVERITY_STYLES: Record<AuditSeverity, string> = {
   info: 'text-gray-500 dark:text-gray-400',
@@ -72,6 +77,18 @@ export default function AssetDetail() {
   // honest, verifiable slice rather than a half-merged approximation.
   const { data: assetAudit } = useAuditLog({ entityType: 'asset', entityId: assetId }, 0);
   const { data: slaBreaches } = useAssetSlaBreaches(assetId);
+  // Trips is a Fleet/Logistics-only concept (see INDUSTRY_CONFIG) -- a
+  // mining excavator or a municipal building has no "trip". Only fetch
+  // and show it for the industries that ship with the concept, same gate
+  // used on the Drivers admin-nav link.
+  const showTrips = org?.industry_mode === 'fleet' || org?.industry_mode === 'logistics';
+  const { data: trips } = useAssetTrips(showTrips ? assetId : undefined);
+  const { data: activeTrip } = useActiveTrip(showTrips ? assetId : undefined);
+  const { data: drivers } = useDrivers();
+  const startTrip = useStartTrip();
+  const endTrip = useEndTrip();
+  const push = useToastStore((s) => s.push);
+  const TABS = showTrips ? [...BASE_TABS.slice(0, 2), TRIPS_TAB, ...BASE_TABS.slice(2)] : BASE_TABS;
 
   if (assetLoading) {
     return (
@@ -196,6 +213,80 @@ export default function AssetDetail() {
             ))}
           </div>
         )
+      )}
+
+      {tab === 'trips' && (
+        <div className="space-y-3">
+          {activeTrip ? (
+            <div className="card !bg-brand/5 border border-brand/20 space-y-2">
+              <p className="text-sm font-semibold text-brand flex items-center gap-1.5">
+                <RouteIcon className="w-4 h-4" /> Trip in progress
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Started {formatDate(activeTrip.started_at)}
+                {activeTrip.driver && ` · ${activeTrip.driver.full_name}`}
+                {activeTrip.start_location && ` · from ${activeTrip.start_location}`}
+              </p>
+              <EndTripForm
+                trip={activeTrip}
+                onEnd={async (input) => {
+                  try {
+                    await endTrip.mutateAsync({ id: activeTrip.id, asset_id: assetId!, ...input });
+                    push('Trip ended', 'success');
+                  } catch (err: any) {
+                    push(err.message ?? 'Failed to end trip', 'error');
+                  }
+                }}
+                pending={endTrip.isPending}
+              />
+            </div>
+          ) : (
+            <StartTripForm
+              drivers={drivers ?? []}
+              onStart={async (input) => {
+                try {
+                  await startTrip.mutateAsync({ asset_id: assetId!, ...input });
+                  push('Trip started', 'success');
+                } catch (err: any) {
+                  push(err.message ?? 'Failed to start trip', 'error');
+                }
+              }}
+              pending={startTrip.isPending}
+            />
+          )}
+
+          {(trips ?? []).filter((t) => t.status !== 'in_progress').length === 0 ? (
+            <EmptyState icon={RouteIcon} title="No completed trips" description="Trip history for this vehicle will show up here." />
+          ) : (
+            <div className="space-y-2">
+              {trips!.filter((t) => t.status !== 'in_progress').map((t) => (
+                <div key={t.id} className="card !py-3">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <p className="font-medium text-sm flex-1">
+                      {t.driver?.full_name ?? 'No driver assigned'}
+                    </p>
+                    <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full',
+                      t.status === 'completed' ? 'bg-success/10 text-success' : 'bg-gray-100 text-gray-500 dark:bg-charcoal-light')}>
+                      {t.status === 'completed' ? 'Completed' : 'Cancelled'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {formatDate(t.started_at)}{t.ended_at && ` – ${formatDate(t.ended_at)}`}
+                    {t.start_odometer != null && t.end_odometer != null && (
+                      <span> · {(t.end_odometer - t.start_odometer).toLocaleString()} km</span>
+                    )}
+                  </p>
+                  {(t.start_location || t.end_location) && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {t.start_location ?? '—'} → {t.end_location ?? '—'}
+                    </p>
+                  )}
+                  {t.purpose && <p className="text-xs text-gray-400 mt-0.5">{t.purpose}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === 'parts' && (
@@ -345,6 +436,82 @@ function Row({ label, value, mono }: { label: string; value: string | null | und
     <div className="flex justify-between py-1 border-b border-gray-100 dark:border-charcoal-light last:border-0">
       <span className="text-gray-500 dark:text-gray-400">{label}</span>
       <span className={cn('font-medium', mono && 'font-mono text-xs')}>{value}</span>
+    </div>
+  );
+}
+
+function StartTripForm({
+  drivers, onStart, pending,
+}: {
+  drivers: { id: string; full_name: string }[];
+  onStart: (input: { driver_id?: string; start_odometer?: number; start_location?: string; purpose?: string }) => void;
+  pending: boolean;
+}) {
+  const [driverId, setDriverId] = useState('');
+  const [odometer, setOdometer] = useState('');
+  const [location, setLocation] = useState('');
+  const [purpose, setPurpose] = useState('');
+
+  return (
+    <div className="card space-y-2">
+      <p className="text-sm font-semibold">Start a trip</p>
+      <select className="input" value={driverId} onChange={(e) => setDriverId(e.target.value)}>
+        <option value="">No driver</option>
+        {drivers.map((d) => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+      </select>
+      <div className="flex gap-2">
+        <input className="input" placeholder="Start odometer" type="number" value={odometer} onChange={(e) => setOdometer(e.target.value)} />
+        <input className="input" placeholder="Start location" value={location} onChange={(e) => setLocation(e.target.value)} />
+      </div>
+      <input className="input" placeholder="Purpose (optional)" value={purpose} onChange={(e) => setPurpose(e.target.value)} />
+      <button
+        className="btn-primary w-full"
+        disabled={pending}
+        onClick={() => onStart({
+          driver_id: driverId || undefined,
+          start_odometer: odometer ? Number(odometer) : undefined,
+          start_location: location.trim() || undefined,
+          purpose: purpose.trim() || undefined,
+        })}
+      >
+        {pending ? 'Starting...' : 'Start trip'}
+      </button>
+    </div>
+  );
+}
+
+function EndTripForm({
+  onEnd, pending,
+}: {
+  trip: { start_odometer: number | null };
+  onEnd: (input: { end_odometer?: number; end_location?: string; status?: 'completed' | 'cancelled' }) => void;
+  pending: boolean;
+}) {
+  const [odometer, setOdometer] = useState('');
+  const [location, setLocation] = useState('');
+
+  return (
+    <div className="space-y-2 pt-1">
+      <div className="flex gap-2">
+        <input className="input" placeholder="End odometer" type="number" value={odometer} onChange={(e) => setOdometer(e.target.value)} />
+        <input className="input" placeholder="End location" value={location} onChange={(e) => setLocation(e.target.value)} />
+      </div>
+      <div className="flex gap-2">
+        <button
+          className="btn-primary flex-1"
+          disabled={pending}
+          onClick={() => onEnd({ end_odometer: odometer ? Number(odometer) : undefined, end_location: location.trim() || undefined, status: 'completed' })}
+        >
+          {pending ? 'Ending...' : 'End trip'}
+        </button>
+        <button
+          className="px-3 rounded-xl bg-gray-100 dark:bg-charcoal-light text-gray-600 dark:text-gray-300 text-sm font-medium"
+          disabled={pending}
+          onClick={() => onEnd({ status: 'cancelled' })}
+        >
+          Cancel trip
+        </button>
+      </div>
     </div>
   );
 }
