@@ -185,7 +185,21 @@ export interface WorkOrder {
   actual_cost: number | null;
   due_at: string | null;
   completed_at: string | null;
+  // Provenance for the Action API / co-pilot (see actions.ts). Not a
+  // security boundary — RLS/has_permission governs every write regardless
+  // of this value, it's for audit/UI distinction only.
+  created_via: 'ui' | 'ai_copilot' | 'auto_risk_score' | 'bridge';
   created_at: string;
   updated_at: string;
+}
+
+// ---------- Predictive risk scoring (assets) ----------
+export interface AssetRiskFactors {
+  open_work_orders: number;
+  overdue_work_orders: number;
+  high_severity_incidents_90d: number;
+  maintenance_overdue: boolean;
+  maintenance_days_overdue: number;
+  computed_at: string;
 }
 

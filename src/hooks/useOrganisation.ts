@@ -59,6 +59,20 @@ export interface IndustryConfig {
   // free-text `category` column on asset_types (see AssetRegistry.tsx) —
   // not an enum, so this is guidance for the UI, not a constraint.
   suggestedAssetCategories: string[];
+  // ---- Agent / co-pilot hooks (Phase 1) ----
+  // Short phrases fed into the co-pilot's system prompt so it uses this
+  // industry's vocabulary instead of generic CMMS language. Deliberately
+  // short — this is prompt context, not a taxonomy the code branches on.
+  entityGlossary: string[];
+  // Names of the recommendation types this industry's co-pilot should lean
+  // on first. Informational only right now (surfaced in the prompt and in
+  // suggestedPrompts below) — there is no per-skill routing logic yet;
+  // that's a later phase once there's more than one real skill.
+  agentSkills: string[];
+  // Replaces the old hardcoded 3-prompt list in AIAssistant.tsx. This is
+  // the visible, checkable proof that industry mode changes the co-pilot,
+  // not just a badge.
+  suggestedPrompts: string[];
 }
 
 export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
@@ -69,6 +83,13 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
     priorityModules: [],
     kpiOrder: ['open_work_orders', 'sla_breaches', 'maintenance_due', 'open_incidents'],
     suggestedAssetCategories: ['Equipment', 'Vehicle', 'Facility', 'Other'],
+    entityGlossary: ['asset', 'work order', 'maintenance schedule'],
+    agentSkills: ['general_risk_summary'],
+    suggestedPrompts: [
+      'What are the biggest operational risks right now?',
+      'Where are we losing time on work orders?',
+      'What should the operations manager prioritise today?',
+    ],
   },
   mining: {
     assetLabelSingular: 'Equipment',
@@ -84,6 +105,13 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
       repair: 'Repair',
     },
     suggestedAssetCategories: ['Heavy/Mobile Equipment', 'Drilling Equipment', 'Loader', 'Excavator', 'Haul Truck'],
+    entityGlossary: ['haul truck', 'pit site', 'safety incident', 'scheduled maintenance', 'breakdown'],
+    agentSkills: ['flag_high_risk_equipment', 'safety_incident_pattern'],
+    suggestedPrompts: [
+      'Which equipment is at the highest breakdown risk right now?',
+      'Summarise safety incidents from the last 30 days',
+      'What maintenance is overdue across the pit sites?',
+    ],
   },
   fleet: {
     assetLabelSingular: 'Vehicle',
@@ -99,6 +127,13 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
       repair: 'Repair',
     },
     suggestedAssetCategories: ['Light Vehicle', 'Heavy Vehicle', 'Trailer', 'Motorcycle'],
+    entityGlossary: ['vehicle', 'service', 'accident', 'vehicle inspection', 'parts'],
+    agentSkills: ['predict_service_due', 'flag_high_cost_vehicle'],
+    suggestedPrompts: [
+      'Which vehicles are due for service this week?',
+      'Which vehicles cost the most to maintain this quarter?',
+      'Any vehicles with repeat breakdowns?',
+    ],
   },
   municipal: {
     assetLabelSingular: 'Asset',
@@ -114,6 +149,13 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
       repair: 'Repair',
     },
     suggestedAssetCategories: ['Road/Infrastructure', 'Facility', 'Municipal Vehicle', 'Public Utility'],
+    entityGlossary: ['service request', 'SLA', 'public incident', 'compliance inspection'],
+    agentSkills: ['sla_breach_forecast', 'service_request_backlog'],
+    suggestedPrompts: [
+      'Which SLAs are at risk of breaching this week?',
+      'What is the current service request backlog by ward or site?',
+      'Any recurring public incidents worth escalating?',
+    ],
   },
   government: {
     assetLabelSingular: 'Asset',
@@ -129,6 +171,13 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
       repair: 'Repair',
     },
     suggestedAssetCategories: ['Government Vehicle', 'Facility', 'IT Equipment', 'Other'],
+    entityGlossary: ['procurement', 'compliance', 'reportable incident', 'SLA'],
+    agentSkills: ['compliance_expiry_watch', 'procurement_bottleneck'],
+    suggestedPrompts: [
+      'What compliance documents are expiring soon?',
+      'Where is procurement causing the biggest delays?',
+      'Which SLAs need attention this month?',
+    ],
   },
   logistics: {
     assetLabelSingular: 'Vehicle',
@@ -144,6 +193,13 @@ export const INDUSTRY_CONFIG: Record<IndustryMode, IndustryConfig> = {
       repair: 'Repair',
     },
     suggestedAssetCategories: ['Truck', 'Trailer', 'Delivery Vehicle'],
+    entityGlossary: ['route incident', 'pre-trip inspection', 'delivery vehicle', 'breakdown'],
+    agentSkills: ['route_incident_pattern', 'fleet_availability_risk'],
+    suggestedPrompts: [
+      'Which routes have the most incidents this month?',
+      'What is our delivery fleet availability looking like?',
+      'Any vehicles flagged in pre-trip inspections repeatedly?',
+    ],
   },
 };
 
