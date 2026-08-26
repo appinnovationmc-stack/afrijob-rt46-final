@@ -65,6 +65,15 @@ interface WorkOrderRow {
   asset_id: string | null;
 }
 
+interface InsurancePolicyRow {
+  id: string;
+  asset_id: string;
+  provider: string | null;
+  policy_number: string | null;
+  expiry_date: string | null;
+  status: string;
+}
+
 function assetLabel(a: AssetRow): string {
   return a.registration || a.asset_number || a.id;
 }
@@ -135,6 +144,33 @@ function computeHighCostVehicles(workOrders: WorkOrderRow[], assets: AssetRow[])
       };
     })
     .sort((a, b) => b.total_cost - a.total_cost)
+    .slice(0, 15);
+}
+
+// flag_expiring_insurance: policies with status 'active' ranked by days
+// until expiry_date, soonest first. Lapsed cover on a vehicle still on the
+// road is a compliance and liability risk, not just an admin task — this
+// is deliberately kept separate from predict_service_due (mechanical
+// upkeep) rather than folded in, since the two call for different actions
+// (renew a policy vs. book a service).
+function computeExpiringInsurance(policies: InsurancePolicyRow[], assets: AssetRow[]) {
+  const assetById = new Map(assets.map((a) => [a.id, a]));
+  const now = Date.now();
+  return policies
+    .filter((p) => p.status === 'active' && p.expiry_date)
+    .map((p) => {
+      const asset = assetById.get(p.asset_id);
+      const daysRemaining = Math.round((new Date(p.expiry_date as string).getTime() - now) / 86400000);
+      return {
+        asset_id: p.asset_id,
+        asset_label: asset ? assetLabel(asset) : p.asset_id,
+        policy_id: p.id,
+        provider: p.provider,
+        days_remaining: daysRemaining,
+        expired: daysRemaining < 0,
+      };
+    })
+    .sort((a, b) => a.days_remaining - b.days_remaining)
     .slice(0, 15);
 }
 
@@ -214,24 +250,47 @@ Deno.serve(async (req) => {
 
   let fleetSkillsPromptLine = '';
   if (industryMode === 'fleet') {
-    const schedulesRes = await supabase
-      .from('maintenance_schedules')
-      .select('id,asset_id,name,trigger_type,next_due_at,next_due_meter_reading,active')
-      .eq('active', true)
-      .limit(500);
+    const [schedulesRes, insuranceRes] = await Promise.all([
+      supabase
+        .from('maintenance_schedules')
+        .select('id,asset_id,name,trigger_type,next_due_at,next_due_meter_reading,active')
+        .eq('active', true)
+        .limit(500),
+      supabase
+        .from('vehicle_insurance_policies')
+        .select('id,asset_id,provider,policy_number,expiry_date,status')
+        .limit(500),
+    ]);
+    const assetRows = (assets.data ?? []) as AssetRow[];
+    const promptParts: string[] = [];
     if (!schedulesRes.error) {
-      const assetRows = (assets.data ?? []) as AssetRow[];
       const serviceDue = computeServiceDue((schedulesRes.data ?? []) as MaintenanceScheduleRow[], assetRows);
       const highCost = computeHighCostVehicles((workOrders.data ?? []) as WorkOrderRow[], assetRows);
       context.fleet_skills = {
+        ...(context.fleet_skills as object ?? {}),
         predict_service_due: serviceDue,
         flag_high_cost_vehicle: highCost,
       };
-      fleetSkillsPromptLine =
-        " The context includes a fleet_skills object with two pre-computed skills: predict_service_due (maintenance schedules ranked by days or meter distance remaining — negative values are already overdue) and flag_high_cost_vehicle (vehicles ranked by total actual_cost across their work orders). Lean on these directly for service-due and high-cost questions instead of re-deriving them from raw work_orders/assets. If a vehicle in predict_service_due is overdue, consider proposing a create_work_order draft action for it (category matching the schedule's intent, e.g. maintenance) using its asset_id.";
+      promptParts.push(
+        "predict_service_due (maintenance schedules ranked by days or meter distance remaining — negative values are already overdue) and flag_high_cost_vehicle (vehicles ranked by total actual_cost across their work orders). If a vehicle in predict_service_due is overdue, consider proposing a create_work_order draft action for it (category matching the schedule's intent, e.g. maintenance) using its asset_id.",
+      );
     }
-    // If the schedules read fails (e.g. RLS denies it for this role), the
-    // co-pilot still answers from the base context — fleet skills are an
+    if (!insuranceRes.error) {
+      const expiringInsurance = computeExpiringInsurance((insuranceRes.data ?? []) as InsurancePolicyRow[], assetRows);
+      context.fleet_skills = {
+        ...(context.fleet_skills as object ?? {}),
+        flag_expiring_insurance: expiringInsurance,
+      };
+      promptParts.push(
+        'flag_expiring_insurance (active policies ranked by days until expiry_date — negative values are already lapsed). Treat a lapsed or soon-to-lapse policy as a compliance risk worth surfacing on its own, separate from mechanical service due-dates.',
+      );
+    }
+    if (promptParts.length) {
+      fleetSkillsPromptLine =
+        ` The context includes a fleet_skills object with pre-computed skills: ${promptParts.join(' Also included: ')} Lean on these directly instead of re-deriving them from raw work_orders/assets.`;
+    }
+    // If a read fails (e.g. RLS denies it for this role), the co-pilot
+    // still answers from the base context — fleet skills are an
     // enhancement, not a hard requirement for the endpoint to function.
   }
 
