@@ -474,6 +474,66 @@ export type Database = {
           },
         ]
       }
+      drivers: {
+        Row: {
+          created_at: string
+          full_name: string
+          id: string
+          license_class: string | null
+          license_expiry: string | null
+          license_number: string | null
+          metadata: Json
+          organisation_id: string
+          phone: string | null
+          profile_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name: string
+          id?: string
+          license_class?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          metadata?: Json
+          organisation_id: string
+          phone?: string | null
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string
+          id?: string
+          license_class?: string | null
+          license_expiry?: string | null
+          license_number?: string | null
+          metadata?: Json
+          organisation_id?: string
+          phone?: string | null
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drivers_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "drivers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidents: {
         Row: {
           asset_id: string | null
@@ -2078,6 +2138,82 @@ export type Database = {
           },
         ]
       }
+      trips: {
+        Row: {
+          asset_id: string
+          created_at: string
+          driver_id: string | null
+          end_location: string | null
+          end_odometer: number | null
+          ended_at: string | null
+          id: string
+          metadata: Json
+          organisation_id: string
+          purpose: string | null
+          start_location: string | null
+          start_odometer: number | null
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          driver_id?: string | null
+          end_location?: string | null
+          end_odometer?: number | null
+          ended_at?: string | null
+          id?: string
+          metadata?: Json
+          organisation_id: string
+          purpose?: string | null
+          start_location?: string | null
+          start_odometer?: number | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          driver_id?: string | null
+          end_location?: string | null
+          end_odometer?: number | null
+          ended_at?: string | null
+          id?: string
+          metadata?: Json
+          organisation_id?: string
+          purpose?: string | null
+          start_location?: string | null
+          start_odometer?: number | null
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trips_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trips_organisation_id_fkey"
+            columns: ["organisation_id"]
+            isOneToOne: false
+            referencedRelation: "organisations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_orders: {
         Row: {
           actual_cost: number | null
@@ -2473,34 +2609,20 @@ export type Database = {
         Args: { target_workshop_id: string }
         Returns: boolean
       }
-      log_audit:
-        | {
-            Args: {
-              p_action: string
-              p_actor?: string
-              p_after?: Json
-              p_before?: Json
-              p_entity_id: string
-              p_entity_type: string
-              p_metadata?: Json
-              p_organisation_id: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_action: string
-              p_actor?: string
-              p_after?: Json
-              p_before?: Json
-              p_entity_id: string
-              p_entity_type: string
-              p_metadata?: Json
-              p_organisation_id: string
-              p_severity?: string
-            }
-            Returns: string
-          }
+      log_audit: {
+        Args: {
+          p_action: string
+          p_actor?: string
+          p_after?: Json
+          p_before?: Json
+          p_entity_id: string
+          p_entity_type: string
+          p_metadata?: Json
+          p_organisation_id: string
+          p_severity?: string
+        }
+        Returns: string
+      }
       notify: {
         Args: {
           p_body?: string
