@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { data: results, isFetching } = useGlobalSearch(query);
@@ -16,20 +17,35 @@ export function GlobalSearch() {
   }, [open]);
 
   useEffect(() => {
+    setActiveIndex(0);
+  }, [results]);
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      // Cmd/Ctrl+K opens search from anywhere; Escape closes it — the
-      // "keyboard-friendly search" the spec asks for, kept minimal rather
-      // than a full command-palette (arrow-key result navigation etc.)
-      // since nothing in this codebase established that pattern yet.
+      // Cmd/Ctrl+K opens search from anywhere; Escape closes it; once open,
+      // Up/Down move through results and Enter opens the highlighted one.
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setOpen(true);
+        return;
       }
-      if (e.key === 'Escape') setOpen(false);
+      if (!open) return;
+      if (e.key === 'Escape') { setOpen(false); return; }
+      if (!results?.length) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex((i) => Math.min(i + 1, results.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex((i) => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter') {
+        const r = results[activeIndex];
+        if (r) goTo(r.entity_type, r.entity_id);
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
+  }, [open, results, activeIndex]);
 
   function goTo(entityType: keyof typeof SEARCH_RESULT_HREF, entityId: string) {
     setOpen(false);
@@ -75,11 +91,12 @@ export function GlobalSearch() {
                 </div>
               ) : (
                 <div className="py-1">
-                  {results.map((r) => (
+                  {results.map((r, i) => (
                     <button
                       key={`${r.entity_type}-${r.entity_id}`}
                       onClick={() => goTo(r.entity_type, r.entity_id)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-charcoal flex items-center justify-between gap-2"
+                      onMouseEnter={() => setActiveIndex(i)}
+                      className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 ${i === activeIndex ? 'bg-gray-50 dark:bg-charcoal' : ''}`}
                     >
                       <div className="min-w-0">
                         <p className="font-medium text-sm truncate">{r.title}</p>
