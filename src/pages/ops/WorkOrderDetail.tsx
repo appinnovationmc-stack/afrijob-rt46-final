@@ -1,7 +1,7 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Wrench, Boxes, Timer, FileText, AlertTriangle, History } from 'lucide-react';
 import {
-  useWorkOrder, useUpdateWorkOrderStatus, useAssignWorkOrder, useWorkOrderSlaBreaches, useWorkOrderIncidents,
+  useWorkOrder, useUpdateWorkOrderStatus, useAssignWorkOrder, useSetWorkOrderPriority, useWorkOrderSlaBreaches, useWorkOrderIncidents,
   WORK_ORDER_CATEGORY_LABELS, WORK_ORDER_PRIORITY_META, WORK_ORDER_SOURCE_LABELS, WORK_ORDER_NEXT_STATUS,
 } from '@/hooks/useWorkOrders';
 import { useOrgMembers } from '@/hooks/useTeam';
@@ -43,6 +43,7 @@ export default function WorkOrderDetail() {
   const { data: orgMembers } = useOrgMembers();
   const updateStatus = useUpdateWorkOrderStatus();
   const assignWorkOrder = useAssignWorkOrder();
+  const setPriority = useSetWorkOrderPriority();
   const push = useToastStore((s) => s.push);
 
   if (isLoading) {
@@ -81,9 +82,24 @@ export default function WorkOrderDetail() {
       </p>
 
       <div className="flex items-center gap-2 mb-4">
-        <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold', priorityMeta.className)}>
-          {priorityMeta.label} priority
-        </span>
+        <select
+          className={cn('rounded-full pl-2.5 pr-6 py-1 text-xs font-semibold border-0 appearance-none', priorityMeta.className)}
+          value={wo.priority}
+          disabled={setPriority.isPending}
+          onChange={async (e) => {
+            const priority = e.target.value as typeof wo.priority;
+            try {
+              await setPriority.mutateAsync({ id: wo.id, priority });
+              push('Priority updated', 'success');
+            } catch (err: any) {
+              push(err.message ?? 'Failed to update priority', 'error');
+            }
+          }}
+        >
+          {Object.entries(WORK_ORDER_PRIORITY_META).map(([value, meta]) => (
+            <option key={value} value={value}>{meta.label} priority</option>
+          ))}
+        </select>
         {wo.actual_cost != null && (
           <span className="text-sm font-semibold">{formatCurrencyZAR(wo.actual_cost)}</span>
         )}

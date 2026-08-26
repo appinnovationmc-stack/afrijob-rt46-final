@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useOrganisation } from './useOrganisation';
 import { offlineDb } from '@/lib/offlineDb';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { prioritiseWorkOrder } from '@/lib/afriops/actions';
 import type { Enums } from '@/types/database.types';
 
 type WorkOrderStatus = Enums<'work_order_generic_status'>;
@@ -221,6 +222,24 @@ export function useAssignWorkOrder() {
       qc.invalidateQueries({ queryKey: ['ops', 'work-order', id] });
       qc.invalidateQueries({ queryKey: ['ops', 'my-work-orders'] });
       qc.invalidateQueries({ queryKey: ['ops', 'asset-work-orders'] });
+    },
+  });
+}
+
+// Changes priority only — delegates to the Action API (lib/afriops/actions.ts)
+// so this is the exact same code path the AI co-pilot's accept flow uses,
+// just invoked directly by a human here instead of via a draft. One
+// implementation, two entry points.
+export function useSetWorkOrderPriority() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, priority }: { id: string; priority: WorkOrderPriority }) => {
+      await prioritiseWorkOrder(supabase, id, priority);
+      return { id, priority };
+    },
+    onSuccess: ({ id }) => {
+      qc.invalidateQueries({ queryKey: ['ops', 'work-orders'] });
+      qc.invalidateQueries({ queryKey: ['ops', 'work-order', id] });
     },
   });
 }
