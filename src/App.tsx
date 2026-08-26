@@ -36,6 +36,7 @@ import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
+import Drivers from '@/pages/ops/admin/Drivers';
 import OrgSettings from '@/pages/ops/admin/OrgSettings';
 import Billing from '@/pages/ops/admin/Billing';
 import ApiKeys from '@/pages/ops/admin/ApiKeys';
@@ -140,6 +141,7 @@ function AppContent() {
             <Route path="/ops/work-orders" element={<WorkOrderList />} />
             <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
+            <Route path="/ops/admin/drivers" element={<Drivers />} />
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
             <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
             <Route path="/ops/admin/settings" element={<OrgSettings />} />

@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
-import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight, CreditCard, Key, Truck } from 'lucide-react';
+import { Users, Mail, Shield, History, Settings, ShieldAlert, ArrowRight, CreditCard, Key, Truck, UserCircle } from 'lucide-react';
 import { useOrgMembers, useOrgInvitations } from '@/hooks/useTeam';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { useIsPlatformAdmin, BILLING_STATUS_META } from '@/hooks/useSuperAdmin';
 import { useBillingAccount } from '@/hooks/useBillingAccount';
-import { usePermissions } from '@/hooks/useOrganisation';
+import { usePermissions, useOrganisation } from '@/hooks/useOrganisation';
+import { useDrivers } from '@/hooks/useDrivers';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 
 // Every organisation-administration entry point in one place, so it can
@@ -21,6 +22,9 @@ export function AdminLinksSection() {
   const { data: isPlatformAdmin } = useIsPlatformAdmin();
   const { data: billing, isLoading: billingLoading } = useBillingAccount();
   const { can } = usePermissions();
+  const { data: org } = useOrganisation();
+  const showDrivers = org?.industry_mode === 'fleet' || org?.industry_mode === 'logistics';
+  const { data: drivers } = useDrivers();
 
   const pendingInvites = (invitations ?? []).filter((i) => i.status === 'pending');
   const isLoading = membersLoading || invitesLoading || auditLoading || billingLoading;
@@ -61,6 +65,9 @@ export function AdminLinksSection() {
       <AdminLink to="/ops/admin/api-keys" icon={Key} title="API Keys" detail="External system integrations" />
       {can('serviceproviders.view') && (
         <AdminLink to="/ops/admin/service-providers" icon={Truck} title="Service Providers" detail="External workshops and their capabilities" />
+      )}
+      {showDrivers && (
+        <AdminLink to="/ops/admin/drivers" icon={UserCircle} title="Drivers" detail={`${drivers?.length ?? 0} on file`} />
       )}
       {isPlatformAdmin && (
         <AdminLink to="/ops/admin/super-admin" icon={ShieldAlert} title="Platform Administration" detail="Cross-organisation visibility" />
