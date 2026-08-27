@@ -1,18 +1,77 @@
 # Migration reconciliation — 2026-08-27
 
-## What's confirmed
+## Exact reconciliation (name-level diff, computed 2026-08-27)
 
-Live Supabase project `wtbycozfoeiepvgortvx` has **79 applied migrations**
-(`supabase migration list` equivalent via MCP `list_migrations`). This repo
-had **43** migration files before this audit. That's a **36-migration gap**
-between what's enforcing behaviour in production and what's in git — on top
-of at least one prior instance of this same drift (`RT46_STATUS.md` already
-flagged 17 migrations reconstructed from schema introspection once before).
+Live Supabase project `wtbycozfoeiepvgortvx`: **79 applied migrations**
+(via MCP `list_migrations`). Repo: **44** files (43 pre-existing +
+`gate_work_orders_write_by_org_permission` from this session).
 
-Several "matching" filenames also don't match live timestamps exactly
-(e.g. `add_procurement_linkage_to_parts_unified` is `20260824040000` in this
-repo but applied live as `20260824031816`) — meaning even the files that
-exist here are reconstructions, not the byte-for-byte SQL that ran.
+**34 migrations exist live with NO matching file in the repo at all**
+(not even under a different timestamp):
+
+```
+accept_invitation_also_grants_workshop_membership
+add_missing_fk_indexes
+auto_accept_invitations_on_email_confirmation
+auto_accept_invitations_on_insert_if_already_confirmed
+backfill_workshop_membership_for_invited_members
+consolidate_multiple_permissive_policies
+domain_events_layer
+drop_duplicate_log_audit_overload
+drop_redundant_unique_constraint_role_permissions
+extend_global_search_entity_coverage
+fix_accept_invitation_ambiguous_organisation_id
+fix_accept_invitation_email_lookup
+fix_ambiguous_organisation_id_in_rls_policies
+fix_global_search_search_path
+fix_platform_admins_rls_recursion
+fix_platform_audit_log_rls_initplan
+fix_work_order_parts_unified_security_definer
+fleet_drivers_and_trips
+fleet_vehicle_insurance
+gate_jobs_write_by_org_permission
+link_purchase_orders_to_work_orders
+lock_billing_accounts_writes_to_platform_admin
+lock_down_apply_inventory_movement_trigger_fn
+lock_down_refresh_document_vault_statuses
+lock_down_security_definer_functions
+lock_down_security_definer_functions_v2
+lock_down_security_definer_functions_v3
+phase_k_api_keys_foundation
+phase_k_fix_validate_api_key_no_match_bug
+phase_k_lock_down_validate_api_key
+remove_finance_procurement_create_self_approval
+restrict_billing_accounts_select_to_admins
+revoke_public_execute_billing_escalation_trigger
+revoke_public_execute_on_trigger_functions
+work_order_created_via_and_risk_scoring
+```
+
+**9 more exist under the SAME name in the repo but a DIFFERENT timestamp**
+— meaning the repo file is a reconstruction (from a prior session's schema
+introspection), not the byte-for-byte SQL that actually ran live:
+
+| name | live version | repo version |
+|---|---|---|
+| add_procurement_linkage_to_parts_unified | 20260824031816 | 20260824040000 |
+| fleet_trip_integrity | 20260827010926 | 20260827001500 |
+| generic_ops_audit_triggers | 20260827010918 | 20260825010000 |
+| global_search | 20260824112804 | 20260824050000 |
+| lock_down_internal_trigger_and_cron_functions | 20260827011632 | 20260827121500 |
+| platform_admins | 20260824113413 | 20260824060000 |
+| reinforce_finance_fleet_permissions | 20260827144350 | 20260827140000 |
+| secure_billing_entitlements | 20260826191216 | 20260825000000 |
+| tighten_manager_role_permissions | 20260827011434 | 20260827120000 |
+
+**34 + 9 = 43 migrations where the repo does not have the authoritative SQL**
+(down from an earlier rough estimate of 36-37 — that was before the exact
+name-level diff was run). This is on top of at least one prior instance of
+this same drift (`RT46_STATUS.md` already flagged 17 migrations reconstructed
+from schema introspection once before).
+
+**Repo-only, not live at all** (0 found on this pass — every repo migration
+version either matches live exactly or matches by name with a different
+timestamp; nothing in the repo is pure orphan/unapplied).
 
 ## Why this wasn't fully reconstructed in this session
 
