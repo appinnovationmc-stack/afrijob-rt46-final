@@ -5,16 +5,23 @@ import {
   useApiKeys, useCreateApiKey, useRevokeApiKey,
   API_KEY_SCOPES, API_KEY_SCOPE_LABELS, type ApiKeyScope,
 } from '@/hooks/useApiKeys';
+import { useOrganisation, roleAtLeast } from '@/hooks/useOrganisation';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToastStore } from '@/components/ui/Toast';
 import { formatDate, cn } from '@/lib/utils';
 
 export default function ApiKeys() {
+  const { data: org } = useOrganisation();
   const { data: keys, isLoading } = useApiKeys();
   const create = useCreateApiKey();
   const revoke = useRevokeApiKey();
   const push = useToastStore((s) => s.push);
+
+  // Mirrors is_org_admin() on the backend (role in owner/admin) — the RPCs
+  // and RLS already enforce this, this is purely so a non-admin sees a
+  // disabled form instead of a create/revoke button that silently fails.
+  const isOrgAdmin = roleAtLeast(org?.role, 'admin');
 
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<ApiKeyScope[]>([]);
@@ -51,6 +58,12 @@ export default function ApiKeys() {
         <h1 className="font-heading font-bold text-2xl">API keys</h1>
       </div>
 
+      {!isOrgAdmin && (
+        <div className="card mb-4 !bg-warning/10">
+          <p className="text-xs text-warning font-semibold">View-only. Only organisation owners and admins can create or revoke API keys.</p>
+        </div>
+      )}
+
       <div className="card mb-4 flex gap-2.5 items-start bg-blue-50 dark:bg-blue-950/30 border-none">
         <Info className="w-4 h-4 text-blue-600 dark:text-blue-300 shrink-0 mt-0.5" />
         <p className="text-xs text-blue-700 dark:text-blue-300">
@@ -60,6 +73,7 @@ export default function ApiKeys() {
         </p>
       </div>
 
+      {isOrgAdmin && (
       <div className="card mb-4">
         <p className="font-semibold text-sm mb-3">Create a key</p>
         <form onSubmit={handleCreate} className="flex flex-col gap-3">
@@ -112,6 +126,7 @@ export default function ApiKeys() {
           </div>
         )}
       </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-2"><SkeletonCard /><SkeletonCard /></div>
@@ -135,7 +150,7 @@ export default function ApiKeys() {
                   </div>
                   <button
                     className="btn-secondary !py-1.5 !px-2.5 !text-danger shrink-0"
-                    disabled={revoke.isPending}
+                    disabled={!isOrgAdmin || revoke.isPending}
                     onClick={async () => {
                       if (!confirm(`Revoke "${k.name}"? Anything using it will stop working immediately.`)) return;
                       try {
