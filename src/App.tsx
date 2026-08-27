@@ -50,8 +50,31 @@ import SuperAdmin from '@/pages/ops/admin/SuperAdmin';
 import AssetDetail from '@/pages/ops/admin/AssetDetail';
 import AcceptInvite, { getPendingInviteToken } from '@/pages/auth/AcceptInvite';
 import { useAcceptInvitation } from '@/hooks/useTeam';
+import { useOrganisation } from '@/hooks/useOrganisation';
+import { getRoleConfig } from '@/config/roleConfig';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
+
+// Root route: if the profile has an organisation_members row (the ops/RT46
+// side of the app), send them to their role's landing page from
+// ROLE_CONFIG. Workshop-only profiles (AfriJob, no organisation membership
+// at all) have no role to resolve — org.data is null, not just loading — so
+// they fall through to the existing workshop Dashboard rather than a
+// role-based landing that has nothing to show them.
+function RoleLandingRedirect() {
+  const { data: org, isLoading } = useOrganisation();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
+  }
+
+  if (!org) {
+    return <Dashboard />;
+  }
+
+  const roleCfg = getRoleConfig(org.role as any);
+  return <Navigate to={roleCfg?.defaultLanding ?? '/ops/workspace'} replace />;
+}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthStore();
@@ -100,7 +123,7 @@ function AppContent() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<RoleLandingRedirect />} />
             <Route path="/jobs" element={<JobList />} />
             <Route path="/jobs/new" element={<NewJob />} />
             <Route path="/jobs/:jobId" element={<JobDetail />} />

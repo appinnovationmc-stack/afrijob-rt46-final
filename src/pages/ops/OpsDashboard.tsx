@@ -4,6 +4,7 @@ import {
   ChevronRight, Bell, PackageX, ShieldAlert, Car, Wrench, Lightbulb, LayoutDashboard,
 } from 'lucide-react';
 import { useOrganisation, usePermissions, isModuleEnabled, INDUSTRY_LABELS, INDUSTRY_CONFIG } from '@/hooks/useOrganisation';
+import { getRoleConfig } from '@/config/roleConfig';
 import TechnicianDashboard from '@/pages/ops/TechnicianDashboard';
 import OperationsManagerDashboard from '@/pages/ops/OperationsManagerDashboard';
 import ProcurementDashboard from '@/pages/ops/ProcurementDashboard';
@@ -45,7 +46,16 @@ export default function OpsDashboard() {
   const { data: org, isLoading: orgLoading } = useOrganisation();
   const { can } = usePermissions();
   const industryConfig = INDUSTRY_CONFIG[org?.industry_mode ?? 'general'];
-  const visibleNavItems = NAV_ITEMS.filter((item) => item.moduleKey === 'workspace' || item.moduleKey === 'work_orders' || item.moduleKey === 'intelligence' || isModuleEnabled(org?.enabled_modules, item.moduleKey)).sort((a, b) => {
+  const roleCfg = getRoleConfig(org?.role);
+  // Mirrors ModuleGuard's route-level check: a tile should never be shown
+  // for a module the role would immediately get blocked from on click.
+  // workspace/work_orders/intelligence stay unconditional since those
+  // routes carry no ModuleGuard in App.tsx.
+  const visibleNavItems = NAV_ITEMS.filter((item) =>
+    item.moduleKey === 'workspace' || item.moduleKey === 'work_orders' || item.moduleKey === 'intelligence'
+      ? true
+      : isModuleEnabled(org?.enabled_modules, item.moduleKey) && roleCfg.allowedModules.includes(item.moduleKey)
+  ).sort((a, b) => {
     if (a.moduleKey === 'workspace') return -1;
     if (b.moduleKey === 'workspace') return 1;
     const ai = industryConfig.priorityModules.indexOf(a.moduleKey); const bi = industryConfig.priorityModules.indexOf(b.moduleKey);
