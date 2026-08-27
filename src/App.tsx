@@ -59,8 +59,7 @@ function RoleLandingRedirect() {
   const { data: org, isLoading } = useOrganisation();
   if (isLoading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
   if (!org) return <Dashboard />;
-  const roleCfg = getRoleConfig(org.role);
-  return <Navigate to={roleCfg.defaultLanding} replace />;
+  return <Navigate to={getRoleConfig(org.role).defaultLanding} replace />;
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -125,8 +124,6 @@ function AppContent() {
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
 
-            {/* The shared /ops entry is intentional: OpsDashboard selects the
-                correct role workspace. Specialist routes below are guarded. */}
             <Route path="/ops" element={<OpsDashboard />} />
             <Route element={<ModuleGuard moduleKey="workspace" />}><Route path="/ops/workspace" element={<IndustryWorkspace />} /></Route>
             <Route element={<ModuleGuard moduleKey="intelligence" />}>
@@ -139,6 +136,7 @@ function AppContent() {
             </Route>
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
             <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
+            <Route element={<ModuleGuard moduleKey="finance" />}><Route path="/ops/finance" element={<OpsDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>
             <Route element={<ModuleGuard moduleKey="incidents" />}><Route path="/ops/incidents" element={<Incidents />} /></Route>
             <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
@@ -155,11 +153,11 @@ function AppContent() {
               <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
               <Route path="/ops/admin/audit" element={<AuditLog />} />
               <Route path="/ops/admin/settings" element={<OrgSettings />} />
+              <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
+              <Route path="/ops/admin/billing" element={<Billing />} />
+              <Route path="/ops/admin/api-keys" element={<ApiKeys />} />
+              <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
             </Route>
-            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/service-providers" element={<ServiceProviders />} /></Route>
-            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/billing" element={<Billing />} /></Route>
-            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/api-keys" element={<ApiKeys />} /></Route>
-            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/super-admin" element={<SuperAdmin />} /></Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
