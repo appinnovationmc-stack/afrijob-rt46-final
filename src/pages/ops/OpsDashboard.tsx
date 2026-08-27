@@ -10,6 +10,7 @@ import ProcurementDashboard from '@/pages/ops/ProcurementDashboard';
 import ComplianceDashboard from '@/pages/ops/ComplianceDashboard';
 import OrgAdminDashboard from '@/pages/ops/OrgAdminDashboard';
 import ExecutiveDashboard from '@/pages/ops/ExecutiveDashboard';
+import FleetManagerDashboard from '@/pages/ops/FleetManagerDashboard';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
 import { useDueMaintenanceSchedules } from '@/hooks/useMaintenanceSchedules';
@@ -62,7 +63,8 @@ export default function OpsDashboard() {
   const isLoading = orgLoading || itemsLoading || docsLoading || incidentsLoading || dueLoading || breachesLoading || workOrdersLoading;
   const lowStockCount = (items ?? []).filter(isBelowReorderPoint).length;
   if (org?.role === 'technician') return <TechnicianDashboard />;
-  if (org?.role === 'operations_manager') return <OperationsManagerDashboard />;
+  if (org?.role === 'operations_manager' || org?.role === 'supervisor' || org?.role === 'manager') return <OperationsManagerDashboard />;
+  if (org?.role === 'fleet_manager') return <FleetManagerDashboard />;
   if (org?.role === 'procurement_officer') return <ProcurementDashboard />;
   if (org?.role === 'inspector') return <ComplianceDashboard />;
   if (org?.role === 'admin') return <OrgAdminDashboard />;
