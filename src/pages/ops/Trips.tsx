@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Car, CheckCircle2, Clock3, Plus, Route as RouteIcon, UsersRound, XCircle } from 'lucide-react';
+import { Car, CheckCircle2, Clock3, Plus, Route as RouteIcon, XCircle } from 'lucide-react';
 import { useAssets } from '@/hooks/useAssetRegistry';
 import { useDrivers, type Driver } from '@/hooks/useDrivers';
 import { useAssetTrips, useEndTrip, useStartTrip, type Trip, type TripStatus } from '@/hooks/useTrips';
