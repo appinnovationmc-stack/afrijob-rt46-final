@@ -264,15 +264,41 @@ export default function Procurement() {
   const { data: suppliers, isLoading: suppliersLoading } = useSuppliers();
   const [showNewPo, setShowNewPo] = useState(false);
   const [showNewSupplier, setShowNewSupplier] = useState(false);
+  const { can } = usePermissions();
+
+  const pendingApproval = (orders ?? []).filter((po) => po.status === 'submitted');
+  const showApproverBanner = can('procurement.approve') && pendingApproval.length > 0;
 
   return (
     <div className="px-4 pt-6 pb-24">
       <h1 className="font-heading font-bold text-2xl mb-1">Procurement</h1>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Suppliers and purchase orders.</p>
 
+      {showApproverBanner && (
+        <div className="card mb-4 border-brand/40 bg-brand/5">
+          <p className="font-semibold text-sm">
+            {pendingApproval.length} purchase order{pendingApproval.length === 1 ? '' : 's'} waiting for your approval
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Expand a submitted order below and tap Approve.
+          </p>
+        </div>
+      )}
+
+      {!can('procurement.approve') && pendingApproval.length > 0 && (
+        <div className="card mb-4 border-blue-200 dark:border-blue-900">
+          <p className="font-semibold text-sm">
+            {pendingApproval.length} order{pendingApproval.length === 1 ? '' : 's'} submitted — awaiting Finance/Admin approval
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+            Approvers are notified when you submit. You will be notified when approved.
+          </p>
+        </div>
+      )}
+
       <div className="flex gap-2 mb-5">
         <button className={cn('flex-1 rounded-xl px-3 py-2 text-sm font-semibold', tab === 'orders' ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-charcoal-light text-gray-600 dark:text-gray-300')} onClick={() => setTab('orders')}>
-          Purchase Orders
+          Purchase Orders{pendingApproval.length > 0 ? ` (${pendingApproval.length})` : ''}
         </button>
         <button className={cn('flex-1 rounded-xl px-3 py-2 text-sm font-semibold', tab === 'suppliers' ? 'bg-brand text-white' : 'bg-gray-100 dark:bg-charcoal-light text-gray-600 dark:text-gray-300')} onClick={() => setTab('suppliers')}>
           Suppliers
