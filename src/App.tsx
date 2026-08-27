@@ -38,6 +38,7 @@ import OpsNotifications from '@/pages/ops/Notifications';
 import AIAssistant from '@/pages/ops/AIAssistant';
 import Trips from '@/pages/ops/Trips';
 import FinanceDashboard from '@/pages/ops/FinanceDashboard';
+import ComplianceDashboard from '@/pages/ops/ComplianceDashboard';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
@@ -144,21 +145,22 @@ function AppContent() {
             <Route element={<ModuleGuard moduleKey="sla" />}><Route path="/ops/sla" element={<SlaDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
             <Route element={<ModuleGuard moduleKey="trips" />}><Route path="/ops/trips" element={<Trips />} /></Route>
+            <Route element={<ModuleGuard moduleKey="compliance" />}><Route path="/ops/compliance" element={<ComplianceDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="assets" />}>
               <Route path="/ops/admin/assets" element={<AssetRegistry />} />
               <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
-              <Route path="/ops/admin/drivers" element={<Drivers />} />
             </Route>
+            <Route element={<ModuleGuard moduleKey="drivers" />}><Route path="/ops/admin/drivers" element={<Drivers />} /></Route>
+            <Route element={<ModuleGuard moduleKey="serviceproviders" />}><Route path="/ops/admin/service-providers" element={<ServiceProviders />} /></Route>
             <Route element={<ModuleGuard moduleKey="admin_team" />}>
               <Route path="/ops/admin/team" element={<Team />} />
               <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
-              <Route path="/ops/admin/audit" element={<AuditLog />} />
               <Route path="/ops/admin/settings" element={<OrgSettings />} />
-              <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
               <Route path="/ops/admin/billing" element={<Billing />} />
               <Route path="/ops/admin/api-keys" element={<ApiKeys />} />
               <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
             </Route>
+            <Route element={<ModuleGuard moduleKey="audit" />}><Route path="/ops/admin/audit" element={<AuditLog />} /></Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
