@@ -7,7 +7,7 @@ import { useRt46SyncQueue } from '@/hooks/useRt46SyncQueue';
 import { useOpsSyncQueue } from '@/hooks/useOpsSyncQueue';
 import { useOrganisation } from '@/hooks/useOrganisation';
 import { getRoleConfig, isModuleEnabled } from '@/config/roleConfig';
-import { WifiOff, RefreshCw, Brain, Search } from 'lucide-react';
+import { WifiOff, RefreshCw, Brain } from 'lucide-react';
 import { BillingStatusBanner, BillingBlockedScreen } from './BillingStatusBanner';
 import { RoleInspector } from './RoleInspector';
 
