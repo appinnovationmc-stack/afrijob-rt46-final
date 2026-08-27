@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Car, CheckCircle2, Clock3, Plus, Route as RouteIcon, XCircle } from 'lucide-react';
+import { Car, CheckCircle2, Clock3, Plus, Route as RouteIcon, UsersRound, XCircle } from 'lucide-react';
 import { useAssets } from '@/hooks/useAssetRegistry';
-import { useDrivers, useStartTrip, type Driver } from '@/hooks/useDrivers';
-import { useEndTrip, useAssetTrips, type Trip, type TripStatus } from '@/hooks/useTrips';
-import { useOrganisation, isModuleEnabled } from '@/hooks/useOrganisation';
+import { useDrivers, type Driver } from '@/hooks/useDrivers';
+import { useAssetTrips, useEndTrip, useStartTrip, type Trip, type TripStatus } from '@/hooks/useTrips';
+import { useOrganisation } from '@/hooks/useOrganisation';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonCard } from '@/components/ui/SkeletonCard';
 
@@ -51,7 +51,6 @@ export default function Trips() {
   const [assetId, setAssetId] = useState('');
   const [driverId, setDriverId] = useState('');
   const [startLocation, setStartLocation] = useState('');
-  const [endLocation, setEndLocation] = useState('');
   const [purpose, setPurpose] = useState('');
   const [startOdometer, setStartOdometer] = useState('');
   const [message, setMessage] = useState('');
@@ -74,7 +73,7 @@ export default function Trips() {
         ...(startLocation ? { start_location: startLocation } : {}),
         ...(purpose ? { purpose } : {}),
       });
-      setStartLocation(''); setEndLocation(''); setPurpose(''); setStartOdometer('');
+      setStartLocation(''); setPurpose(''); setStartOdometer('');
       setMessage('Trip started successfully.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to start trip.');
@@ -83,9 +82,10 @@ export default function Trips() {
 
   const finish = async (trip: Trip) => {
     try {
-      const endOdometer = window.prompt('End odometer (optional):', trip.start_odometer != null ? String(trip.start_odometer) : '') ?? '';
+      const endOdometerRaw = window.prompt('End odometer (optional):', trip.start_odometer != null ? String(trip.start_odometer) : '') ?? '';
       const endLocation = window.prompt('End location (optional):', '') ?? '';
-      await endTrip.mutateAsync({ id: trip.id, asset_id: trip.asset_id, ...(endOdometer ? { end_odometer: Number(endOdometer) } : {}), ...(endLocation ? { end_location: endLocation } : {}), status: 'completed' });
+      const endOdometer = endOdometerRaw.trim() && Number.isFinite(Number(endOdometerRaw)) ? Number(endOdometerRaw) : undefined;
+      await endTrip.mutateAsync({ id: trip.id, asset_id: trip.asset_id, ...(endOdometer != null ? { end_odometer: endOdometer } : {}), ...(endLocation ? { end_location: endLocation } : {}), status: 'completed' });
       setMessage('Trip completed.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to complete trip.');
