@@ -55,25 +55,12 @@ import { getRoleConfig } from '@/config/roleConfig';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
 
-// Root route: if the profile has an organisation_members row (the ops/RT46
-// side of the app), send them to their role's landing page from
-// ROLE_CONFIG. Workshop-only profiles (AfriJob, no organisation membership
-// at all) have no role to resolve — org.data is null, not just loading — so
-// they fall through to the existing workshop Dashboard rather than a
-// role-based landing that has nothing to show them.
 function RoleLandingRedirect() {
   const { data: org, isLoading } = useOrganisation();
-
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
-  }
-
-  if (!org) {
-    return <Dashboard />;
-  }
-
-  const roleCfg = getRoleConfig(org.role as any);
-  return <Navigate to={roleCfg?.defaultLanding ?? '/ops/workspace'} replace />;
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
+  if (!org) return <Dashboard />;
+  const roleCfg = getRoleConfig(org.role);
+  return <Navigate to={roleCfg.defaultLanding} replace />;
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -137,10 +124,19 @@ function AppContent() {
               <Route path="compliance" element={<Rt46Compliance />} />
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
+
+            {/* The shared /ops entry is intentional: OpsDashboard selects the
+                correct role workspace. Specialist routes below are guarded. */}
             <Route path="/ops" element={<OpsDashboard />} />
-            <Route path="/ops/workspace" element={<IndustryWorkspace />} />
-            <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
-            <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
+            <Route element={<ModuleGuard moduleKey="workspace" />}><Route path="/ops/workspace" element={<IndustryWorkspace />} /></Route>
+            <Route element={<ModuleGuard moduleKey="intelligence" />}>
+              <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
+              <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="work_orders" />}>
+              <Route path="/ops/work-orders" element={<WorkOrderList />} />
+              <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
+            </Route>
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
             <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
             <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>
@@ -148,20 +144,22 @@ function AppContent() {
             <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
             <Route element={<ModuleGuard moduleKey="sla" />}><Route path="/ops/sla" element={<SlaDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
-            <Route path="/ops/work-orders" element={<WorkOrderList />} />
-            <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
-            <Route path="/ops/trips" element={<Trips />} />
-            <Route path="/ops/admin/assets" element={<AssetRegistry />} />
-            <Route path="/ops/admin/drivers" element={<Drivers />} />
-            <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
-            <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
-            <Route path="/ops/admin/settings" element={<OrgSettings />} />
-            <Route path="/ops/admin/billing" element={<Billing />} />
-            <Route path="/ops/admin/api-keys" element={<ApiKeys />} />
-            <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
-            <Route path="/ops/admin/team" element={<Team />} />
-            <Route path="/ops/admin/audit" element={<AuditLog />} />
-            <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
+            <Route element={<ModuleGuard moduleKey="trips" />}><Route path="/ops/trips" element={<Trips />} /></Route>
+            <Route element={<ModuleGuard moduleKey="assets" />}>
+              <Route path="/ops/admin/assets" element={<AssetRegistry />} />
+              <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
+              <Route path="/ops/admin/drivers" element={<Drivers />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="admin_team" />}>
+              <Route path="/ops/admin/team" element={<Team />} />
+              <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
+              <Route path="/ops/admin/audit" element={<AuditLog />} />
+              <Route path="/ops/admin/settings" element={<OrgSettings />} />
+            </Route>
+            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/service-providers" element={<ServiceProviders />} /></Route>
+            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/billing" element={<Billing />} /></Route>
+            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/api-keys" element={<ApiKeys />} /></Route>
+            <Route element={<ModuleGuard moduleKey="admin_team" />}><Route path="/ops/admin/super-admin" element={<SuperAdmin />} /></Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
