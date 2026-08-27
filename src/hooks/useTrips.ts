@@ -1,6 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganisation } from './useOrganisation';
+import { offlineDb } from '@/lib/offlineDb';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 // Mirrors public.trips.status check constraint.
 export type TripStatus = 'in_progress' | 'completed' | 'cancelled';
@@ -38,10 +40,6 @@ export function useAssetTrips(assetId: string | undefined) {
   });
 }
 
-// The one open trip for an asset, if any -- an asset should only ever have
-// a single in_progress trip at a time (enforced at the UI level here, not
-// a DB constraint, since that's a business rule rather than a data
-// integrity one).
 export function useActiveTrip(assetId: string | undefined) {
   return useQuery({
     queryKey: ['ops', 'active-trip', assetId],
@@ -59,9 +57,27 @@ export function useActiveTrip(assetId: string | undefined) {
   });
 }
 
+function localTrip(input: { id: string; asset_id: string; driver_id?: string; start_odometer?: number; start_location?: string; purpose?: string; started_at: string }): Trip {
+  return {
+    id: input.id,
+    asset_id: input.asset_id,
+    driver_id: input.driver_id ?? null,
+    driver: null,
+    started_at: input.started_at,
+    ended_at: null,
+    start_odometer: input.start_odometer ?? null,
+    end_odometer: null,
+    start_location: input.start_location ?? null,
+    end_location: null,
+    purpose: input.purpose ?? null,
+    status: 'in_progress',
+  };
+}
+
 export function useStartTrip() {
   const { data: org } = useOrganisation();
   const qc = useQueryClient();
+  const online = useNetworkStatus();
   return useMutation({
     mutationFn: async (input: {
       asset_id: string;
@@ -70,23 +86,51 @@ export function useStartTrip() {
       start_location?: string;
       purpose?: string;
     }) => {
+      if (!org?.organisation_id) throw new Error('No active organisation selected.');
+      const id = crypto.randomUUID();
+      const startedAt = new Date().toISOString();
+      if (!online) {
+        const trip = localTrip({ id, ...input, started_at: startedAt });
+        await offlineDb.queuedOpsTripMutations.add({
+          localId: `local:${crypto.randomUUID()}`,
+          action: 'start',
+          tripId: id,
+          organisationId: org.organisation_id,
+          assetId: input.asset_id,
+          ...(input.driver_id ? { driverId: input.driver_id } : {}),
+          ...(input.start_odometer !== undefined ? { startOdometer: input.start_odometer } : {}),
+          ...(input.start_location ? { startLocation: input.start_location } : {}),
+          ...(input.purpose ? { purpose: input.purpose } : {}),
+          startedAt,
+          createdAt: startedAt,
+          synced: false,
+        });
+        return trip;
+      }
       const { data, error } = await supabase
         .from('trips')
-        .insert({ ...input, organisation_id: org!.organisation_id, status: 'in_progress' as TripStatus })
+        .insert({ id, ...input, organisation_id: org.organisation_id, status: 'in_progress' as TripStatus, started_at: startedAt })
         .select(TRIP_SELECT)
         .single();
       if (error) throw error;
-      return data;
+      return data as unknown as Trip;
     },
-    onSuccess: (_data, vars) => {
+    onSuccess: (data, vars) => {
       qc.invalidateQueries({ queryKey: ['ops', 'asset-trips', vars.asset_id] });
       qc.invalidateQueries({ queryKey: ['ops', 'active-trip', vars.asset_id] });
+      if (!online) {
+        const existing = qc.getQueryData<Trip[]>(['ops', 'asset-trips', vars.asset_id]) ?? [];
+        qc.setQueryData(['ops', 'asset-trips', vars.asset_id], [data, ...existing]);
+        qc.setQueryData(['ops', 'active-trip', vars.asset_id], data);
+      }
     },
   });
 }
 
 export function useEndTrip() {
+  const { data: org } = useOrganisation();
   const qc = useQueryClient();
+  const online = useNetworkStatus();
   return useMutation({
     mutationFn: async (input: {
       id: string;
@@ -95,15 +139,38 @@ export function useEndTrip() {
       end_location?: string;
       status?: Extract<TripStatus, 'completed' | 'cancelled'>;
     }) => {
+      if (!org?.organisation_id) throw new Error('No active organisation selected.');
+      const endedAt = new Date().toISOString();
+      const nextStatus = input.status ?? 'completed';
+      if (!online) {
+        await offlineDb.queuedOpsTripMutations.add({
+          localId: `local:${crypto.randomUUID()}`,
+          action: 'end',
+          tripId: input.id,
+          organisationId: org.organisation_id,
+          assetId: input.asset_id,
+          ...(input.end_odometer !== undefined ? { endOdometer: input.end_odometer } : {}),
+          ...(input.end_location ? { endLocation: input.end_location } : {}),
+          status: nextStatus,
+          endedAt,
+          createdAt: endedAt,
+          synced: false,
+        });
+        const existing = qc.getQueryData<Trip[]>(['ops', 'asset-trips', input.asset_id]) ?? [];
+        const updated = existing.map((trip) => trip.id === input.id ? { ...trip, end_odometer: input.end_odometer ?? trip.end_odometer, end_location: input.end_location ?? trip.end_location, ended_at: endedAt, status: nextStatus } : trip);
+        const current = updated.find((trip) => trip.id === input.id) ?? null;
+        return current;
+      }
       const { id, asset_id, ...rest } = input;
       const { data, error } = await supabase
         .from('trips')
-        .update({ ...rest, status: rest.status ?? 'completed', ended_at: new Date().toISOString() })
+        .update({ ...rest, status: nextStatus, ended_at: endedAt })
         .eq('id', id)
+        .eq('organisation_id', org.organisation_id)
         .select(TRIP_SELECT)
         .single();
       if (error) throw error;
-      return data;
+      return data as unknown as Trip;
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['ops', 'asset-trips', vars.asset_id] });
