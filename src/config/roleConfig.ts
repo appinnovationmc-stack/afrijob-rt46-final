@@ -53,7 +53,7 @@ const NAV = {
   drivers: { to: '/ops/admin/drivers', label: 'Drivers', moduleKey: 'drivers' } as RoleNavItem,
   trips: { to: '/ops/trips', label: 'Trips', moduleKey: 'trips' } as RoleNavItem,
   admin_team: { to: '/ops/admin/team', label: 'Team', moduleKey: 'admin_team' } as RoleNavItem,
-  finance: { to: '/ops/finance', label: 'Finance', moduleKey: 'finance' } as RoleNavItem,
+  finance: { to: '/ops', label: 'Finance', moduleKey: 'finance' } as RoleNavItem,
   rt46: { to: '/rt46', label: 'RT46', moduleKey: 'rt46' } as RoleNavItem,
 };
 
@@ -63,7 +63,7 @@ function landingFor(role: OrganisationRole) {
     case 'technician': return '/ops/work-orders';
     case 'fleet_manager': return '/ops/workspace';
     case 'procurement_officer': return '/ops/procurement';
-    case 'finance': return '/ops/finance';
+    case 'finance': return '/ops';
     case 'inspector': return '/ops/incidents';
     case 'owner': return '/ops/workspace';
     case 'admin': return '/ops/admin/team';

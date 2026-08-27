@@ -1,0 +1,153 @@
+*** Begin Patch
+*** Update File: src/components/layout/ModuleGuard.tsx
+@@
+ import { Link, Outlet } from 'react-router-dom';
+ import { PackageX } from 'lucide-react';
+ import { useOrganisation, usePermissions, isModuleEnabled } from '@/hooks/useOrganisation';
+ import { MODULE_LABELS } from '@/hooks/useOrgSettings';
+ import { EmptyState } from '@/components/ui/EmptyState';
+ import { SkeletonCard } from '@/components/ui/SkeletonCard';
++import { getRoleConfig } from '@/config/roleConfig';
+ 
+@@
+ export function ModuleGuard({ moduleKey }: { moduleKey: string }) {
+   const { data: org, isLoading } = useOrganisation();
+   const { can } = usePermissions();
+ 
+   if (isLoading) {
+     return (
+       <div className="px-4 pt-6">
+         <SkeletonCard />
+       </div>
+     );
+   }
+ 
+-  if (!isModuleEnabled(org?.enabled_modules, moduleKey)) {
+-    const label = MODULE_LABELS[moduleKey as keyof typeof MODULE_LABELS] ?? moduleKey;
+-    const canManage = can('org.manage_settings');
+-    return (
+-      <div className="px-4 pt-6">
+-        <EmptyState
+-          icon={PackageX}
+-          title={`${label} isn't enabled`}
+-          description={
+-            canManage
+-              ? `This module is turned off for ${org?.organisation_name ?? 'your organisation'}. You can enable it from Organisation Settings.`
+-              : `This module is turned off for ${org?.organisation_name ?? 'your organisation'}. Ask an organisation admin to enable it.`
+-          }
+-          action={
+-            canManage ? (
+-              <Link to="/ops/admin/settings" className="btn-primary text-sm">
+-                Go to Settings
+-              </Link>
+-            ) : undefined
+-          }
+-        />
+-      </div>
+-    );
+-  }
++  // First: module-level enabled/disabled check
++  const moduleEnabled = isModuleEnabled(org?.enabled_modules, moduleKey);
++
++  // Second: role-based module permission from centralized ROLE_CONFIG
++  const roleCfg = getRoleConfig(org?.role as any);
++  const roleAllows = Array.isArray(roleCfg?.allowedModules)
++    ? roleCfg.allowedModules.includes(moduleKey)
++    : false;
++
++  if (!moduleEnabled || !roleAllows) {
++    const label = MODULE_LABELS[moduleKey as keyof typeof MODULE_LABELS] ?? moduleKey;
++    const canManage = can('org.manage_settings');
++    const reason = !moduleEnabled
++      ? `This module is turned off for ${org?.organisation_name ?? 'your organisation'}.`
++      : `Your role (${org?.role ?? 'unknown'}) does not permit access to this module.`;
++
++    return (
++      <div className="px-4 pt-6">
++        <EmptyState
++          icon={PackageX}
++          title={`${label} access restricted`}
++          description={
++            canManage
++              ? `${reason} You can enable or grant access from Organisation Settings.`
++              : `${reason} Ask an organisation admin to enable access if this is unexpected.`
++          }
++          action={
++            canManage ? (
++              <Link to="/ops/admin/settings" className="btn-primary text-sm">
++                Go to Settings
++              </Link>
++            ) : undefined
++          }
++        />
++      </div>
++    );
++  }
+ 
+   return <Outlet />;
+ }
+*** End of File
+
+*** Update File: src/App.tsx
+@@
+ import { useEffect } from 'react';
+ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+ import { useAuthStore } from '@/store/authStore';
+ import { useWorkshopStore } from '@/store/workshopStore';
+ import { supabase } from '@/lib/supabase';
+ import { createOrganisationAndWorkshop } from '@/lib/organisations';
+ import { AppShell } from '@/components/layout/AppShell';
+ import { Rt46AdminGuard } from '@/components/layout/Rt46AdminGuard';
+ import { ModuleGuard } from '@/components/layout/ModuleGuard';
+ import { ToastViewport } from '@/components/ui/Toast';
+ import Login from '@/pages/auth/Login';
+ import SignUp from '@/pages/auth/SignUp';
+ import Dashboard from '@/pages/Dashboard';
+@@
+ import { useAcceptInvitation } from '@/hooks/useTeam';
++import { useOrganisation } from '@/hooks/useOrganisation';
++import { getRoleConfig } from '@/config/roleConfig';
+ 
+@@
+ function RequireAuth({ children }: { children: React.ReactNode }) {
+   const { session, loading } = useAuthStore();
+   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
+   if (!session) return <Navigate to="/login" replace />;
+   return <>{children}</>;
+ }
+ 
+ export default function App() {
+   return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>;
+ }
+ 
+ function AppContent() {
+@@
+       <Route path="/" element={<Dashboard />} />
++      {/* Redirect landing to a role-aware default landing defined by ROLE_CONFIG */}
++      <Route
++        path="/"
++        element={
++          <RoleLandingRedirect />
++        }
++      />
+@@
+     </Routes>
+   </BrowserRouter>
+ </>
+ );
+ }
++
++function RoleLandingRedirect() {
++  const { data: org, isLoading } = useOrganisation();
++  if (isLoading) {
++    return (
++      <div className="min-h-screen flex items-center justify-center text-gray-400">
++        Loading…
++      </div>
++    );
++  }
++  const roleCfg = getRoleConfig(org?.role as any);
++  return <Navigate to={roleCfg?.defaultLanding ?? '/ops/workspace'} replace />;
++}
+*** End of File
