@@ -38,6 +38,7 @@ import OpsNotifications from '@/pages/ops/Notifications';
 import AIAssistant from '@/pages/ops/AIAssistant';
 import Trips from '@/pages/ops/Trips';
 import FinanceDashboard from '@/pages/ops/FinanceDashboard';
+import ComplianceDashboard from '@/pages/ops/ComplianceDashboard';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
