@@ -37,6 +37,7 @@ import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
 import AIAssistant from '@/pages/ops/AIAssistant';
 import Trips from '@/pages/ops/Trips';
+import FinanceDashboard from '@/pages/ops/FinanceDashboard';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
@@ -136,7 +137,7 @@ function AppContent() {
             </Route>
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
             <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
-            <Route element={<ModuleGuard moduleKey="finance" />}><Route path="/ops/finance" element={<OpsDashboard />} /></Route>
+            <Route element={<ModuleGuard moduleKey="finance" />}><Route path="/ops/finance" element={<FinanceDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>
             <Route element={<ModuleGuard moduleKey="incidents" />}><Route path="/ops/incidents" element={<Incidents />} /></Route>
             <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
