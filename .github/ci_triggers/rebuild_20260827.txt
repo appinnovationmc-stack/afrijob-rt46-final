@@ -1,0 +1,5 @@
+Triggering CI rebuild
+
+This file was added to trigger a GitHub Actions rebuild for the branch `feat/afriops-enterprise-finish` as requested by @appinnovationmc-stack.
+
+Timestamp: 2026-08-27T00:00:00Z
