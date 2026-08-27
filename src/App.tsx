@@ -37,6 +37,7 @@ import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
 import AIAssistant from '@/pages/ops/AIAssistant';
 import Trips from '@/pages/ops/Trips';
+import Finance from '@/pages/ops/Finance';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
@@ -151,6 +152,7 @@ function AppContent() {
             <Route path="/ops/work-orders" element={<WorkOrderList />} />
             <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
             <Route path="/ops/trips" element={<Trips />} />
+            <Route path="/ops/finance" element={<Finance />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
             <Route path="/ops/admin/drivers" element={<Drivers />} />
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
