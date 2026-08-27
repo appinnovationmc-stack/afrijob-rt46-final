@@ -5,8 +5,6 @@
 // and RLS remain the security boundary). The goal is to centralise UI
 // behavior so different personas see materially different experiences.
 
-import type { IndustryMode } from '@/hooks/useOrganisation';
-
 export type OrganisationRole =
   | 'owner'
   | 'admin'
