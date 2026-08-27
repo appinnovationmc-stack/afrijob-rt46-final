@@ -32,7 +32,11 @@ export function BottomNav() {
 
   const config = getRoleConfig(org?.role);
   const configuredTabs = config.nav
-    .filter((item) => !item.moduleKey || isModuleEnabled(org?.enabled_modules, item.moduleKey))
+    .filter((item) => {
+      const roleAllows = !item.moduleKey || config.allowedModules.includes(item.moduleKey);
+      const moduleEnabled = !item.moduleKey || isModuleEnabled(org?.enabled_modules, item.moduleKey);
+      return roleAllows && moduleEnabled;
+    })
     .slice(0, 4);
 
   const tabs = configuredTabs.map((item) => ({
@@ -41,13 +45,12 @@ export function BottomNav() {
     icon: ICONS[item.moduleKey ?? 'workspace'] ?? Home,
   }));
 
+  // RT46 is a separate privileged workspace. Keep it visible only to an
+  // authenticated RT46 administrator and never let it displace Profile.
   if (isRt46Admin && !tabs.some((tab) => tab.to === '/rt46')) {
     tabs.push({ to: '/rt46', label: 'RT46 Admin', icon: Landmark });
   }
 
-  // Always keep Profile available, but never let it displace a role's first
-  // four work destinations. The user's workspace is therefore the primary
-  // mobile experience rather than the generic Home/Work/Ops shell.
   tabs.push({ to: '/profile', label: 'Profile', icon: User });
 
   return (
