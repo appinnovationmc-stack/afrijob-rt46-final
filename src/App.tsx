@@ -8,6 +8,7 @@ import { createOrganisationAndWorkshop } from '@/lib/organisations';
 import { AppShell } from '@/components/layout/AppShell';
 import { Rt46AdminGuard } from '@/components/layout/Rt46AdminGuard';
 import { ModuleGuard } from '@/components/layout/ModuleGuard';
+import { RoleGuard } from '@/components/layout/RoleGuard';
 import { ToastViewport } from '@/components/ui/Toast';
 import Login from '@/pages/auth/Login';
 import SignUp from '@/pages/auth/SignUp';
@@ -23,7 +24,7 @@ import Rt46WorkOrders from '@/pages/rt46/Rt46WorkOrders';
 import Rt46FraudFlags from '@/pages/rt46/Rt46FraudFlags';
 import Rt46Compliance from '@/pages/rt46/Rt46Compliance';
 import Rt46Quality from '@/pages/rt46/Rt46Quality';
-import OpsDashboard from '@/pages/ops/OpsDashboard';
+import OpsEntry from '@/pages/ops/OpsEntry';
 import OperationalIntelligence from '@/pages/ops/OperationalIntelligence';
 import WorkOrderList from '@/pages/ops/WorkOrderList';
 import WorkOrderDetail from '@/pages/ops/WorkOrderDetail';
@@ -57,6 +58,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   if (!session) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
+
+const ADMIN_ROLES = ['owner', 'admin'] as const;
 
 export default function App() {
   return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>;
@@ -112,9 +115,8 @@ function AppContent() {
               <Route path="compliance" element={<Rt46Compliance />} />
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
-            <Route path="/ops" element={<OpsDashboard />} />
-            <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
-            <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
+            <Route path="/ops" element={<OpsEntry />} />
+            <Route element={<ModuleGuard moduleKey="intelligence" />}><Route path="/ops/intelligence" element={<OperationalIntelligence />} /><Route path="/ops/intelligence/ask" element={<AIAssistant />} /></Route>
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
             <Route element={<ModuleGuard moduleKey="procurement" />}><Route path="/ops/procurement" element={<Procurement />} /></Route>
             <Route element={<ModuleGuard moduleKey="documents" />}><Route path="/ops/documents" element={<DocumentVault />} /></Route>
@@ -122,19 +124,20 @@ function AppContent() {
             <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
             <Route element={<ModuleGuard moduleKey="sla" />}><Route path="/ops/sla" element={<SlaDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
-            <Route path="/ops/work-orders" element={<WorkOrderList />} />
-            <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
-            <Route path="/ops/admin/assets" element={<AssetRegistry />} />
-            <Route path="/ops/admin/drivers" element={<Drivers />} />
-            <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
-            <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
-            <Route path="/ops/admin/settings" element={<OrgSettings />} />
-            <Route path="/ops/admin/billing" element={<Billing />} />
-            <Route path="/ops/admin/api-keys" element={<ApiKeys />} />
-            <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
-            <Route path="/ops/admin/team" element={<Team />} />
-            <Route path="/ops/admin/audit" element={<AuditLog />} />
-            <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
+            <Route element={<ModuleGuard moduleKey="work_orders" />}><Route path="/ops/work-orders" element={<WorkOrderList />} /><Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} /></Route>
+            <Route element={<RoleGuard roles={[...ADMIN_ROLES]} />}>
+              <Route path="/ops/admin/assets" element={<AssetRegistry />} />
+              <Route path="/ops/admin/drivers" element={<Drivers />} />
+              <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
+              <Route path="/ops/admin/service-providers" element={<ServiceProviders />} />
+              <Route path="/ops/admin/settings" element={<OrgSettings />} />
+              <Route path="/ops/admin/billing" element={<Billing />} />
+              <Route path="/ops/admin/api-keys" element={<ApiKeys />} />
+              <Route path="/ops/admin/permissions" element={<PermissionMatrix />} />
+              <Route path="/ops/admin/team" element={<Team />} />
+              <Route path="/ops/admin/audit" element={<AuditLog />} />
+              <Route path="/ops/admin/super-admin" element={<SuperAdmin />} />
+            </Route>
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
