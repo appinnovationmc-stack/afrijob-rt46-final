@@ -24,6 +24,7 @@ import Rt46FraudFlags from '@/pages/rt46/Rt46FraudFlags';
 import Rt46Compliance from '@/pages/rt46/Rt46Compliance';
 import Rt46Quality from '@/pages/rt46/Rt46Quality';
 import OpsDashboard from '@/pages/ops/OpsDashboard';
+import IndustryWorkspace from '@/pages/ops/IndustryWorkspace';
 import OperationalIntelligence from '@/pages/ops/OperationalIntelligence';
 import WorkOrderList from '@/pages/ops/WorkOrderList';
 import WorkOrderDetail from '@/pages/ops/WorkOrderDetail';
@@ -35,6 +36,7 @@ import MaintenanceSchedules from '@/pages/ops/MaintenanceSchedules';
 import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
 import AIAssistant from '@/pages/ops/AIAssistant';
+import Trips from '@/pages/ops/Trips';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
@@ -48,8 +50,31 @@ import SuperAdmin from '@/pages/ops/admin/SuperAdmin';
 import AssetDetail from '@/pages/ops/admin/AssetDetail';
 import AcceptInvite, { getPendingInviteToken } from '@/pages/auth/AcceptInvite';
 import { useAcceptInvitation } from '@/hooks/useTeam';
+import { useOrganisation } from '@/hooks/useOrganisation';
+import { getRoleConfig } from '@/config/roleConfig';
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 30_000 } } });
+
+// Root route: if the profile has an organisation_members row (the ops/RT46
+// side of the app), send them to their role's landing page from
+// ROLE_CONFIG. Workshop-only profiles (AfriJob, no organisation membership
+// at all) have no role to resolve — org.data is null, not just loading — so
+// they fall through to the existing workshop Dashboard rather than a
+// role-based landing that has nothing to show them.
+function RoleLandingRedirect() {
+  const { data: org, isLoading } = useOrganisation();
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>;
+  }
+
+  if (!org) {
+    return <Dashboard />;
+  }
+
+  const roleCfg = getRoleConfig(org.role as any);
+  return <Navigate to={roleCfg?.defaultLanding ?? '/ops/workspace'} replace />;
+}
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuthStore();
@@ -98,7 +123,7 @@ function AppContent() {
           <Route path="/signup" element={<SignUp />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<RoleLandingRedirect />} />
             <Route path="/jobs" element={<JobList />} />
             <Route path="/jobs/new" element={<NewJob />} />
             <Route path="/jobs/:jobId" element={<JobDetail />} />
@@ -113,6 +138,7 @@ function AppContent() {
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
             <Route path="/ops" element={<OpsDashboard />} />
+            <Route path="/ops/workspace" element={<IndustryWorkspace />} />
             <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
             <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
@@ -124,6 +150,7 @@ function AppContent() {
             <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
             <Route path="/ops/work-orders" element={<WorkOrderList />} />
             <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
+            <Route path="/ops/trips" element={<Trips />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
             <Route path="/ops/admin/drivers" element={<Drivers />} />
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />

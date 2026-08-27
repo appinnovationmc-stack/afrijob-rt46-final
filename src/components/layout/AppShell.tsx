@@ -7,6 +7,7 @@ import { useRt46SyncQueue } from '@/hooks/useRt46SyncQueue';
 import { useOpsSyncQueue } from '@/hooks/useOpsSyncQueue';
 import { WifiOff, RefreshCw, Brain } from 'lucide-react';
 import { BillingStatusBanner, BillingBlockedScreen } from './BillingStatusBanner';
+import { RoleInspector } from './RoleInspector';
 
 export function AppShell() {
   const { online, syncing, pendingCount } = useSyncQueue();
@@ -40,6 +41,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <BottomNav />
+      <RoleInspector />
     </div>
     </BillingBlockedScreen>
   );

@@ -14,7 +14,7 @@ declare
   old_json jsonb;
   row_json jsonb;
   org_id uuid;
-  entity_id text;
+  entity_id uuid;
   action_name text;
 begin
   new_json := case when TG_OP in ('INSERT','UPDATE') then to_jsonb(NEW) else null end;
@@ -22,7 +22,7 @@ begin
   row_json := coalesce(new_json, old_json);
 
   org_id := nullif(coalesce(new_json->>'organisation_id', old_json->>'organisation_id'), '')::uuid;
-  entity_id := coalesce(new_json->>'id', old_json->>'id');
+  entity_id := nullif(coalesce(new_json->>'id', old_json->>'id'), '')::uuid;
 
   if org_id is null or entity_id is null then
     return coalesce(NEW, OLD);
