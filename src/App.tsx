@@ -23,7 +23,7 @@ import Rt46WorkOrders from '@/pages/rt46/Rt46WorkOrders';
 import Rt46FraudFlags from '@/pages/rt46/Rt46FraudFlags';
 import Rt46Compliance from '@/pages/rt46/Rt46Compliance';
 import Rt46Quality from '@/pages/rt46/Rt46Quality';
-import OpsDashboard from '@/pages/ops/OpsDashboard';
+import OpsEntry from '@/pages/ops/OpsEntry';
 import OperationalIntelligence from '@/pages/ops/OperationalIntelligence';
 import WorkOrderList from '@/pages/ops/WorkOrderList';
 import WorkOrderDetail from '@/pages/ops/WorkOrderDetail';
@@ -112,7 +112,7 @@ function AppContent() {
               <Route path="compliance" element={<Rt46Compliance />} />
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
-            <Route path="/ops" element={<OpsDashboard />} />
+            <Route path="/ops" element={<OpsEntry />} />
             <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
             <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
@@ -122,8 +122,8 @@ function AppContent() {
             <Route element={<ModuleGuard moduleKey="maintenance" />}><Route path="/ops/maintenance" element={<MaintenanceSchedules />} /></Route>
             <Route element={<ModuleGuard moduleKey="sla" />}><Route path="/ops/sla" element={<SlaDashboard />} /></Route>
             <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
-            <Route path="/ops/work-orders" element={<WorkOrderList />} />
-            <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
+            <Route element={<ModuleGuard moduleKey="work_orders" />}><Route path="/ops/work-orders" element={<WorkOrderList />} /><Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} /></Route>
+            <Route element={<ModuleGuard moduleKey="intelligence" />}><Route path="/ops/intelligence" element={<OperationalIntelligence />} /><Route path="/ops/intelligence/ask" element={<AIAssistant />} /></Route>
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
             <Route path="/ops/admin/drivers" element={<Drivers />} />
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
