@@ -4,17 +4,13 @@ import { useOrganisation } from './useOrganisation';
 import { offlineDb } from '@/lib/offlineDb';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { prioritiseWorkOrder } from '@/lib/afriops/actions';
+import { notifyProfile } from '@/lib/afriops/notifications';
 import type { Enums } from '@/types/database.types';
 
 type WorkOrderStatus = Enums<'work_order_generic_status'>;
 type WorkOrderCategory = Enums<'work_order_category'>;
 type WorkOrderPriority = Enums<'work_order_priority'>;
 
-// Joined shape for both the list and detail views. work_orders has two FKs
-// into profiles (assignee_profile_id, requester_profile_id), so PostgREST
-// needs the real constraint name to disambiguate — confirmed live against
-// production (work_orders_assignee_profile_id_fkey /
-// work_orders_requester_profile_id_fkey), not guessed.
 const WORK_ORDER_SELECT = `
   *,
   asset:assets!work_orders_asset_id_fkey(id, asset_number, registration, manufacturer, model),
@@ -36,6 +32,7 @@ export interface WorkOrderListItem {
   due_at: string | null;
   completed_at: string | null;
   created_at: string;
+  organisation_id?: string;
   asset: { id: string; asset_number: string | null; registration: string | null; manufacturer: string | null; model: string | null } | null;
   site: { id: string; name: string } | null;
   assignee: { id: string; full_name: string | null } | null;
@@ -43,11 +40,6 @@ export interface WorkOrderListItem {
   service_provider: { id: string; trading_name: string } | null;
 }
 
-// This is the ONLY unscoped read of public.work_orders in the app —
-// everything else either reads it asset-scoped (useAssetWorkOrders) or
-// reads a different table entirely (rt46.work_orders, which despite the
-// same table name is a separate per-merchant schema, not this generic
-// cross-source bridge). No dedicated Work Order list existed before this.
 export function useWorkOrders(status?: WorkOrderStatus) {
   const { data: org } = useOrganisation();
   return useQuery({
@@ -83,9 +75,6 @@ export function useWorkOrder(workOrderId: string | undefined) {
   });
 }
 
-// Powers the Technician dashboard's "my work" queue — the current user's
-// own assigned_profile_id, not the org-wide list useWorkOrders returns.
-// Excludes terminal statuses so the queue only ever shows actionable work.
 export function useMyWorkOrders(profileId: string | undefined) {
   return useQuery({
     queryKey: ['ops', 'my-work-orders', profileId],
@@ -135,9 +124,6 @@ export interface WorkOrderIncident {
   occurred_at: string;
 }
 
-// incidents links back to a work order via linked_work_order_id (the
-// reverse of the more common asset-scoped incident) — confirmed as a real
-// column against live schema before writing this.
 export function useWorkOrderIncidents(workOrderId: string | undefined) {
   return useQuery({
     queryKey: ['ops', 'work-order-incidents', workOrderId],
@@ -162,12 +148,10 @@ export function useUpdateWorkOrderStatus() {
       const updates = {
         status,
         ...(status === 'completed' ? { completed_at: new Date().toISOString() } : {}),
+        // Clearing completed_at when sending back for rework
+        ...(status === 'in_progress' ? { completed_at: null } : {}),
       };
 
-      // Offline: queue the update instead of failing outright. Same
-      // conflict-detection shape as the jobs queue — snapshot updated_at
-      // now (from cache, since we're offline) so useOpsSyncQueue can flag
-      // if it changed elsewhere by the time this actually syncs.
       if (!online) {
         const cached = qc.getQueryData<{ updated_at: string }>(['ops', 'work-order', id]);
         await offlineDb.queuedOpsWorkOrderUpdates.put({
@@ -188,24 +172,24 @@ export function useUpdateWorkOrderStatus() {
     onSuccess: ({ id }) => {
       qc.invalidateQueries({ queryKey: ['ops', 'work-orders'] });
       qc.invalidateQueries({ queryKey: ['ops', 'work-order', id] });
-      // A status change is exactly the kind of thing Asset 360's Work
-      // Orders tab and at-a-glance "Open work" count need to reflect too.
       qc.invalidateQueries({ queryKey: ['ops', 'asset-work-orders'] });
     },
   });
 }
 
-// Sets who a work order belongs to. Previously nothing in the app wrote
-// assignee_profile_id at all -- it only ever showed up read-only, so it
-// stayed null forever and "My Work" (useMyWorkOrders) had nothing to
-// match against. Passing null clears the assignee (unassign). When a
-// work order is still in 'pending', assigning someone also advances it
-// to 'assigned' -- mirrors the same transition WORK_ORDER_NEXT_STATUS
-// already encodes for the manual "Mark as" button.
 export function useAssignWorkOrder() {
   const qc = useQueryClient();
+  const { data: org } = useOrganisation();
   return useMutation({
-    mutationFn: async ({ id, assigneeProfileId, currentStatus }: { id: string; assigneeProfileId: string | null; currentStatus: WorkOrderStatus }) => {
+    mutationFn: async ({
+      id,
+      assigneeProfileId,
+      currentStatus,
+    }: {
+      id: string;
+      assigneeProfileId: string | null;
+      currentStatus: WorkOrderStatus;
+    }) => {
       const advanceStatus = assigneeProfileId && currentStatus === 'pending';
       const { error } = await supabase
         .from('work_orders')
@@ -215,6 +199,20 @@ export function useAssignWorkOrder() {
         })
         .eq('id', id);
       if (error) throw error;
+
+      // Notify the new assignee so they know work landed in their queue.
+      if (assigneeProfileId && org?.organisation_id) {
+        await notifyProfile(supabase, {
+          organisation_id: org.organisation_id,
+          recipient_profile_id: assigneeProfileId,
+          type: 'work_order_assigned',
+          title: 'Work order assigned to you',
+          body: 'A work order has been assigned to you. Open it from My Work or Work Orders.',
+          link_entity_type: 'work_order',
+          link_entity_id: id,
+        });
+      }
+
       return { id };
     },
     onSuccess: ({ id }) => {
@@ -226,10 +224,6 @@ export function useAssignWorkOrder() {
   });
 }
 
-// Changes priority only — delegates to the Action API (lib/afriops/actions.ts)
-// so this is the exact same code path the AI co-pilot's accept flow uses,
-// just invoked directly by a human here instead of via a draft. One
-// implementation, two entry points.
 export function useSetWorkOrderPriority() {
   const qc = useQueryClient();
   return useMutation({
@@ -261,16 +255,8 @@ export const WORK_ORDER_PRIORITY_META: Record<WorkOrderPriority, { label: string
   urgent: { label: 'Urgent', className: 'bg-danger/15 text-danger' },
 };
 
-// Same source-honesty pattern already used in AssetDetail.tsx's Work Orders
-// tab — 'afrijob' and 'rt46' are the workshop/RT46 flows that bridge into
-// this table, 'native' means it was created directly here.
 export const WORK_ORDER_SOURCE_LABELS: Record<string, string> = { afrijob: 'AfriOps', rt46: 'RT46', native: 'Ops' };
 
-// The forward-only status progression a work order can be manually pushed
-// through from this UI. Not every transition is linear in reality (e.g.
-// awaiting_parts can resolve back to in_progress), so this only offers the
-// single "next step" action — same UX shape as useIncidents.ts's
-// NEXT_STATUS, not a full state-machine editor.
 export const WORK_ORDER_NEXT_STATUS: Record<WorkOrderStatus, WorkOrderStatus | null> = {
   draft: 'pending',
   pending: 'assigned',
