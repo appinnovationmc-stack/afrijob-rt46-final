@@ -5,7 +5,9 @@ import { GlobalSearch } from './GlobalSearch';
 import { useSyncQueue } from '@/hooks/useSyncQueue';
 import { useRt46SyncQueue } from '@/hooks/useRt46SyncQueue';
 import { useOpsSyncQueue } from '@/hooks/useOpsSyncQueue';
-import { WifiOff, RefreshCw, Brain } from 'lucide-react';
+import { useOrganisation } from '@/hooks/useOrganisation';
+import { getRoleConfig, isModuleEnabled } from '@/config/roleConfig';
+import { WifiOff, RefreshCw, Brain, Search } from 'lucide-react';
 import { BillingStatusBanner, BillingBlockedScreen } from './BillingStatusBanner';
 import { RoleInspector } from './RoleInspector';
 
@@ -13,7 +15,11 @@ export function AppShell() {
   const { online, syncing, pendingCount } = useSyncQueue();
   const { syncing: rt46Syncing, pendingCount: rt46PendingCount } = useRt46SyncQueue();
   const { syncing: opsSyncing, pendingCount: opsPendingCount } = useOpsSyncQueue();
+  const { data: org, isLoading: organisationLoading } = useOrganisation();
   const pendingTotal = pendingCount + rt46PendingCount + opsPendingCount;
+  const roleConfig = getRoleConfig(org?.role);
+  const canIntelligence = !organisationLoading && roleConfig.nav.some((item) => item.to === '/ops/intelligence') && isModuleEnabled(org?.enabled_modules, 'intelligence');
+  const canNotifications = !organisationLoading && roleConfig.nav.some((item) => item.to === '/ops/notifications') && isModuleEnabled(org?.enabled_modules, 'notifications');
 
   return (
     <BillingBlockedScreen>
@@ -32,17 +38,19 @@ export function AppShell() {
         )}
         <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
           <GlobalSearch />
-          <Link to="/ops/intelligence" className="w-10 h-10 rounded-full bg-white/90 dark:bg-charcoal-light/90 backdrop-blur shadow-card flex items-center justify-center text-gray-600 dark:text-gray-200 hover:text-brand-600" aria-label="Open AfriOps Intelligence" title="AfriOps Intelligence">
-            <Brain className="w-4 h-4" />
-          </Link>
-          <div className="rounded-full bg-white/90 dark:bg-charcoal-light/90 backdrop-blur shadow-card"><NotificationBell /></div>
+          {canIntelligence && (
+            <Link to="/ops/intelligence" className="w-10 h-10 rounded-full bg-white/90 dark:bg-charcoal-light/90 backdrop-blur shadow-card flex items-center justify-center text-gray-600 dark:text-gray-200 hover:text-brand-600" aria-label="Open AfriOps Intelligence" title="AfriOps Intelligence">
+              <Brain className="w-4 h-4" />
+            </Link>
+          )}
+          {canNotifications && <div className="rounded-full bg-white/90 dark:bg-charcoal-light/90 backdrop-blur shadow-card"><NotificationBell /></div>}
         </div>
-      <main className="flex-1 pb-40">
-        <Outlet />
-      </main>
-      <BottomNav />
-      <RoleInspector />
-    </div>
+        <main className="flex-1 pb-40">
+          <Outlet />
+        </main>
+        <BottomNav />
+        <RoleInspector />
+      </div>
     </BillingBlockedScreen>
   );
 }
