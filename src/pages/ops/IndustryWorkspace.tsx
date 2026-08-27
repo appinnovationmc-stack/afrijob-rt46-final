@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Boxes, CalendarClock, FileCheck2, Gauge, Lightbulb, ShoppingCart, Wrench } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Boxes, CalendarClock, Car, FileCheck2, Gauge, Lightbulb, ShoppingCart, Users, Wrench } from 'lucide-react';
 import { useOrganisation, INDUSTRY_CONFIG, INDUSTRY_LABELS, isModuleEnabled } from '@/hooks/useOrganisation';
 import { useInventoryItems, useExpiringDocuments, isBelowReorderPoint } from '@/hooks/useAfriops';
 import { useIncidents } from '@/hooks/useIncidents';
@@ -21,13 +21,33 @@ const ACTIONS = [
   { key: 'intelligence', label: 'Intelligence', description: 'Prioritised exceptions and recommendations', to: '/ops/intelligence', icon: Lightbulb },
 ] as const;
 
-const MODE_COPY: Record<string, { title: string; subtitle: string; primary: string[] }> = {
-  fleet: { title: 'Fleet Control Centre', subtitle: 'Keep vehicles available, compliant and cost-efficient.', primary: ['Vehicles', 'Drivers', 'Trips', 'Maintenance', 'Incidents'] },
-  mining: { title: 'Mining Operations Centre', subtitle: 'Control equipment availability, safety and site maintenance.', primary: ['Equipment', 'Sites', 'Safety', 'Maintenance', 'Contractors'] },
-  municipal: { title: 'Municipal Service Centre', subtitle: 'Coordinate public assets, service requests and SLA performance.', primary: ['Assets', 'Service Requests', 'Facilities', 'SLA', 'Compliance'] },
-  government: { title: 'Government Operations Centre', subtitle: 'Run accountable procurement, compliance and service delivery.', primary: ['Assets', 'Procurement', 'Compliance', 'SLA', 'Audit'] },
-  logistics: { title: 'Logistics Control Centre', subtitle: 'Keep vehicles moving, routes reliable and deliveries on time.', primary: ['Vehicles', 'Routes', 'Fuel', 'Maintenance', 'Incidents'] },
-  general: { title: 'Operations Control Centre', subtitle: 'Run assets, work, maintenance, risk and procurement in one place.', primary: ['Assets', 'Work Orders', 'Maintenance', 'Inventory', 'Compliance'] },
+const MODE_PRIMARY: Record<string, Array<{ label: string; description: string; to: string; icon: React.ElementType }>> = {
+  fleet: [
+    { label: 'Vehicles', description: 'Fleet assets and vehicle history', to: '/ops/admin/assets', icon: Car },
+    { label: 'Drivers', description: 'Licences, status and assignments', to: '/ops/admin/drivers', icon: Users },
+    { label: 'Trips', description: 'Start and close vehicle trips', to: '/ops/trips', icon: ArrowRight },
+  ],
+  logistics: [
+    { label: 'Vehicles', description: 'Transport assets and availability', to: '/ops/admin/assets', icon: Car },
+    { label: 'Drivers', description: 'Driver register and compliance', to: '/ops/admin/drivers', icon: Users },
+    { label: 'Trips', description: 'Vehicle movement history', to: '/ops/trips', icon: ArrowRight },
+  ],
+  mining: [
+    { label: 'Equipment', description: 'Mobile equipment and asset history', to: '/ops/admin/assets', icon: Car },
+    { label: 'Contractors', description: 'Service providers and capabilities', to: '/ops/admin/service-providers', icon: Users },
+  ],
+  municipal: [
+    { label: 'Assets', description: 'Municipal assets and locations', to: '/ops/admin/assets', icon: Car },
+    { label: 'Service Work', description: 'Work orders and service operations', to: '/ops/work-orders', icon: Wrench },
+  ],
+  government: [
+    { label: 'Assets', description: 'Government assets and lifecycle history', to: '/ops/admin/assets', icon: Car },
+    { label: 'Audit', description: 'Operational audit and accountability', to: '/ops/admin/audit', icon: FileCheck2 },
+  ],
+  general: [
+    { label: 'Assets', description: 'Asset registry and operational history', to: '/ops/admin/assets', icon: Car },
+    { label: 'Team', description: 'People, roles and access', to: '/ops/admin/team', icon: Users },
+  ],
 };
 
 function Metric({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'warning' | 'danger' }) {
@@ -47,18 +67,21 @@ export default function IndustryWorkspace() {
 
   const mode = org?.industry_mode ?? 'general';
   const config = INDUSTRY_CONFIG[mode];
-  const copy = MODE_COPY[mode];
+  const copy = config ? config : INDUSTRY_CONFIG.general;
   const openWork = (workOrders ?? []).filter((w) => !['completed', 'cancelled', 'disputed'].includes(w.status)).length;
   const lowStock = (inventory ?? []).filter(isBelowReorderPoint).length;
   const loading = orgLoading || workLoading || incidentsLoading || maintenanceLoading || slaLoading || inventoryLoading || docsLoading;
   const actions = ACTIONS.filter((action) => action.key === 'work_orders' || action.key === 'intelligence' || isModuleEnabled(org?.enabled_modules, action.key));
+  const primary = MODE_PRIMARY[mode] ?? MODE_PRIMARY.general;
 
   return <div className="px-4 pt-6 pb-8 max-w-6xl mx-auto">
     <header className="mb-6">
       <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide font-semibold"><span>{org?.organisation_name}</span><span>•</span><span>{INDUSTRY_LABELS[mode]}</span></div>
-      <h1 className="font-heading font-bold text-2xl mt-1">{copy.title}</h1>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{copy.subtitle}</p>
-      <div className="flex flex-wrap gap-2 mt-4">{copy.primary.map((item) => <span key={item} className="px-2.5 py-1 rounded-full bg-brand-50 dark:bg-charcoal-light text-xs font-medium text-brand">{item}</span>)}</div>
+      <h1 className="font-heading font-bold text-2xl mt-1">{mode === 'fleet' ? 'Fleet Control Centre' : mode === 'mining' ? 'Mining Operations Centre' : mode === 'municipal' ? 'Municipal Service Centre' : mode === 'government' ? 'Government Operations Centre' : mode === 'logistics' ? 'Logistics Control Centre' : 'Operations Control Centre'}</h1>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{copy.tagline}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-4">
+        {primary.map(({ label, description, to, icon: Icon }) => <Link key={label} to={to} className="flex items-center gap-3 rounded-xl border border-gray-100 dark:border-charcoal-light p-3 hover:bg-gray-50 dark:hover:bg-charcoal-light transition-colors"><div className="w-9 h-9 rounded-lg bg-brand-50 dark:bg-charcoal-light flex items-center justify-center"><Icon className="w-4 h-4 text-brand" /></div><div className="min-w-0 flex-1"><p className="font-semibold text-sm">{label}</p><p className="text-xs text-gray-500 dark:text-gray-400 truncate">{description}</p></div><ArrowRight className="w-4 h-4 text-gray-300" /></Link>)}
+      </div>
     </header>
 
     {loading ? <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">{[1,2,3,4].map((i) => <SkeletonCard key={i} />)}</div> : <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -81,6 +104,6 @@ export default function IndustryWorkspace() {
       </div></section>
     </div>
 
-    <section className="rounded-2xl border border-brand/20 bg-brand-50/40 dark:bg-charcoal-light p-4"><div className="flex gap-3"><Lightbulb className="w-5 h-5 text-brand mt-0.5 shrink-0"/><div><p className="font-semibold text-sm">AfriOps operating principle</p><p className="text-xs text-gray-600 dark:text-gray-300 mt-1">The same operational record can be managed differently by industry without fragmenting the underlying organisation, asset, work-order, compliance and cost data.</p><p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Current mode: <strong>{INDUSTRY_LABELS[mode]}</strong> · terminology: <strong>{config.assetLabelPlural}</strong></p></div></div></section>
+    <section className="rounded-2xl border border-brand/20 bg-brand-50/40 dark:bg-charcoal-light p-4"><div className="flex gap-3"><Lightbulb className="w-5 h-5 text-brand mt-0.5 shrink-0"/><div><p className="font-semibold text-sm">AfriOps operating principle</p><p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Industry context changes the operating workspace without fragmenting organisation, asset, work-order, compliance and cost data.</p><p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Current mode: <strong>{INDUSTRY_LABELS[mode]}</strong> · terminology: <strong>{config.assetLabelPlural}</strong></p></div></div></section>
   </div>;
 }
