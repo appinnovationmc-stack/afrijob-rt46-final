@@ -28,6 +28,24 @@ export interface QueuedOpsInventoryMovement {
   createdAt: string;
   synced: boolean;
 }
+export interface QueuedOpsTripMutation {
+  localId: string;
+  action: 'start' | 'end';
+  tripId: string;
+  organisationId: string;
+  assetId: string;
+  driverId?: string;
+  startOdometer?: number;
+  endOdometer?: number;
+  startLocation?: string;
+  endLocation?: string;
+  purpose?: string;
+  status?: 'completed' | 'cancelled';
+  startedAt?: string;
+  endedAt?: string;
+  createdAt: string;
+  synced: boolean;
+}
 
 class AfriJobDB extends Dexie {
   jobsCache!: Table<Tables<'jobs'>, string>;
@@ -39,6 +57,7 @@ class AfriJobDB extends Dexie {
   queuedRt46ChecklistUpdates!: Table<QueuedRt46ChecklistUpdate, string>;
   queuedOpsWorkOrderUpdates!: Table<QueuedOpsWorkOrderUpdate, string>;
   queuedOpsInventoryMovements!: Table<QueuedOpsInventoryMovement, string>;
+  queuedOpsTripMutations!: Table<QueuedOpsTripMutation, string>;
 
   constructor() {
     super('afrijob-offline');
@@ -47,6 +66,7 @@ class AfriJobDB extends Dexie {
     this.version(3).stores({ jobsCache: 'id, workshop_id, status', queuedJobs: 'localId, workshop_id, synced', queuedPhotos: 'localId, jobId, synced', queuedStatusUpdates: 'localId, jobId, synced', syncConflicts: 'id, jobId', queuedRt46Evidence: 'localId, workOrderId, synced', queuedRt46ChecklistUpdates: 'localId, itemId, synced' });
     this.version(4).stores({ jobsCache: 'id, workshop_id, status', queuedJobs: 'localId, workshop_id, synced', queuedPhotos: 'localId, jobId, synced', queuedStatusUpdates: 'localId, jobId, synced', syncConflicts: 'id, jobId', queuedRt46Evidence: 'localId, workOrderId, synced', queuedRt46ChecklistUpdates: 'localId, itemId, synced', queuedOpsWorkOrderUpdates: 'localId, workOrderId, synced' });
     this.version(5).stores({ jobsCache: 'id, workshop_id, status', queuedJobs: 'localId, workshop_id, synced', queuedPhotos: 'localId, jobId, synced', queuedStatusUpdates: 'localId, jobId, synced', syncConflicts: 'id, jobId', queuedRt46Evidence: 'localId, workOrderId, synced', queuedRt46ChecklistUpdates: 'localId, itemId, synced', queuedOpsWorkOrderUpdates: 'localId, workOrderId, synced', queuedOpsInventoryMovements: 'localId, inventoryItemId, synced' });
+    this.version(6).stores({ jobsCache: 'id, workshop_id, status', queuedJobs: 'localId, workshop_id, synced', queuedPhotos: 'localId, jobId, synced', queuedStatusUpdates: 'localId, jobId, synced', syncConflicts: 'id, jobId', queuedRt46Evidence: 'localId, workOrderId, synced', queuedRt46ChecklistUpdates: 'localId, itemId, synced', queuedOpsWorkOrderUpdates: 'localId, workOrderId, synced', queuedOpsInventoryMovements: 'localId, inventoryItemId, synced', queuedOpsTripMutations: 'localId, tripId, assetId, synced' });
   }
 }
 
