@@ -36,6 +36,7 @@ import MaintenanceSchedules from '@/pages/ops/MaintenanceSchedules';
 import SlaDashboard from '@/pages/ops/SlaDashboard';
 import OpsNotifications from '@/pages/ops/Notifications';
 import AIAssistant from '@/pages/ops/AIAssistant';
+import Trips from '@/pages/ops/Trips';
 import AssetRegistry from '@/pages/ops/admin/AssetRegistry';
 import ServiceProviders from '@/pages/ops/admin/ServiceProviders';
 import Drivers from '@/pages/ops/admin/Drivers';
@@ -126,6 +127,7 @@ function AppContent() {
             <Route element={<ModuleGuard moduleKey="notifications" />}><Route path="/ops/notifications" element={<OpsNotifications />} /></Route>
             <Route path="/ops/work-orders" element={<WorkOrderList />} />
             <Route path="/ops/work-orders/:workOrderId" element={<WorkOrderDetail />} />
+            <Route path="/ops/trips" element={<Trips />} />
             <Route path="/ops/admin/assets" element={<AssetRegistry />} />
             <Route path="/ops/admin/drivers" element={<Drivers />} />
             <Route path="/ops/admin/assets/:assetId" element={<AssetDetail />} />
