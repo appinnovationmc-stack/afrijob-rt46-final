@@ -2,8 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { Bell, BriefcaseBusiness, Building2, ClipboardCheck, FileText, Home, Landmark, Package, Settings, ShieldCheck, User, Wallet, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsRt46Admin } from '@/hooks/useRt46';
-import { useOrganisation } from '@/hooks/useOrganisation';
-import { getRoleConfig, isModuleEnabled } from '@/config/roleConfig';
+import { useOrganisation, isModuleEnabled } from '@/hooks/useOrganisation';
+import { getRoleConfig } from '@/config/roleConfig';
 
 const ICONS: Record<string, typeof Home> = {
   workspace: Building2,
