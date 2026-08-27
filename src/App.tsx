@@ -24,6 +24,7 @@ import Rt46FraudFlags from '@/pages/rt46/Rt46FraudFlags';
 import Rt46Compliance from '@/pages/rt46/Rt46Compliance';
 import Rt46Quality from '@/pages/rt46/Rt46Quality';
 import OpsDashboard from '@/pages/ops/OpsDashboard';
+import IndustryWorkspace from '@/pages/ops/IndustryWorkspace';
 import OperationalIntelligence from '@/pages/ops/OperationalIntelligence';
 import WorkOrderList from '@/pages/ops/WorkOrderList';
 import WorkOrderDetail from '@/pages/ops/WorkOrderDetail';
@@ -113,6 +114,7 @@ function AppContent() {
               <Route path="quality" element={<Rt46Quality />} />
             </Route>
             <Route path="/ops" element={<OpsDashboard />} />
+            <Route path="/ops/workspace" element={<IndustryWorkspace />} />
             <Route path="/ops/intelligence" element={<OperationalIntelligence />} />
             <Route path="/ops/intelligence/ask" element={<AIAssistant />} />
             <Route element={<ModuleGuard moduleKey="inventory" />}><Route path="/ops/inventory" element={<Inventory />} /></Route>
