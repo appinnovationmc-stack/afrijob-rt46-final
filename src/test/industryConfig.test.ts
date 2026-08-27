@@ -1,7 +1,23 @@
-import { describe, expect, it } from 'vitest';
-import { INDUSTRY_CONFIG, INDUSTRY_LABELS, isModuleEnabled } from '@/hooks/useOrganisation';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 describe('AfriOps industry configuration', () => {
+  let INDUSTRY_CONFIG: typeof import('@/hooks/useOrganisation').INDUSTRY_CONFIG;
+  let INDUSTRY_LABELS: typeof import('@/hooks/useOrganisation').INDUSTRY_LABELS;
+  let isModuleEnabled: typeof import('@/hooks/useOrganisation').isModuleEnabled;
+
+  beforeAll(async () => {
+    // Keep this pure configuration suite independent from production Supabase
+    // credentials. useOrganisation also exports hooks that initialise the
+    // Supabase client at module load, so provide harmless test-only values
+    // before the module is imported.
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
+    vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'test-publishable-key');
+    const mod = await import('@/hooks/useOrganisation');
+    INDUSTRY_CONFIG = mod.INDUSTRY_CONFIG;
+    INDUSTRY_LABELS = mod.INDUSTRY_LABELS;
+    isModuleEnabled = mod.isModuleEnabled;
+  });
+
   it('defines all supported enterprise modes', () => {
     expect(Object.keys(INDUSTRY_CONFIG).sort()).toEqual(['fleet', 'general', 'government', 'logistics', 'mining', 'municipal']);
     expect(INDUSTRY_LABELS.fleet).toBe('Fleet');
