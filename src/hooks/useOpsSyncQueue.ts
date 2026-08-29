@@ -6,6 +6,7 @@ import { offlineDb } from '@/lib/offlineDb';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useToastStore } from '@/components/ui/Toast';
 import * as inventory from '@/lib/afriops/inventory';
+import * as procurement from '@/lib/afriops/procurement';
 
 export function useOpsSyncQueue() {
   const online = useNetworkStatus();
@@ -16,7 +17,9 @@ export function useOpsSyncQueue() {
   const pendingWorkOrders = useLiveQuery(() => offlineDb.queuedOpsWorkOrderUpdates.filter((u) => !u.synced).count(), [], 0) ?? 0;
   const pendingInventory = useLiveQuery(() => offlineDb.queuedOpsInventoryMovements.filter((m) => !m.synced).count(), [], 0) ?? 0;
   const pendingTrips = useLiveQuery(() => offlineDb.queuedOpsTripMutations.filter((m) => !m.synced).count(), [], 0) ?? 0;
-  const pendingCount = pendingWorkOrders + pendingInventory + pendingTrips;
+  const pendingPurchaseOrders = useLiveQuery(() => offlineDb.queuedOpsPurchaseOrderMutations.filter((m) => !m.synced).count(), [], 0) ?? 0;
+  const pendingIncidents = useLiveQuery(() => offlineDb.queuedOpsIncidentMutations.filter((m) => !m.synced).count(), [], 0) ?? 0;
+  const pendingCount = pendingWorkOrders + pendingInventory + pendingTrips + pendingPurchaseOrders + pendingIncidents;
 
   useEffect(() => {
     if (!online || flushingRef.current || pendingCount === 0) return;
@@ -93,9 +96,46 @@ export function useOpsSyncQueue() {
             await offlineDb.queuedOpsTripMutations.update(mutation.localId, { synced: true });
             syncedAny = true;
           } catch {
-            // A common failure here is an expired/completed trip or a
-            // duplicate insert from a previous partial sync. Stop the queue
-            // at the first failure so later mutations preserve their order.
+            break;
+          }
+        }
+
+        // Purchase order submits queued while offline.
+        const pos = await offlineDb.queuedOpsPurchaseOrderMutations.filter((m) => !m.synced).toArray();
+        pos.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        for (const mutation of pos) {
+          try {
+            if (mutation.action === 'submit') {
+              await procurement.submitPurchaseOrder(supabase, mutation.purchaseOrderId);
+            }
+            await offlineDb.queuedOpsPurchaseOrderMutations.update(mutation.localId, { synced: true });
+            syncedAny = true;
+          } catch {
+            break;
+          }
+        }
+
+        // Incident create / status updates queued while offline.
+        const incidents = await offlineDb.queuedOpsIncidentMutations.filter((m) => !m.synced).toArray();
+        incidents.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        for (const mutation of incidents) {
+          try {
+            if (mutation.action === 'create') {
+              const { error } = await supabase.from('incidents').insert({
+                ...mutation.payload,
+                organisation_id: mutation.organisationId,
+              });
+              if (error) throw error;
+            } else if (mutation.action === 'update_status' && mutation.incidentId) {
+              const { error } = await supabase
+                .from('incidents')
+                .update(mutation.payload)
+                .eq('id', mutation.incidentId);
+              if (error) throw error;
+            }
+            await offlineDb.queuedOpsIncidentMutations.update(mutation.localId, { synced: true });
+            syncedAny = true;
+          } catch {
             break;
           }
         }
@@ -107,6 +147,8 @@ export function useOpsSyncQueue() {
         qc.invalidateQueries({ queryKey: ['ops', 'inventory-movements'] });
         qc.invalidateQueries({ queryKey: ['ops', 'asset-trips'] });
         qc.invalidateQueries({ queryKey: ['ops', 'active-trip'] });
+        qc.invalidateQueries({ queryKey: ['ops', 'purchase-orders'] });
+        qc.invalidateQueries({ queryKey: ['ops', 'incidents'] });
         if (syncedAny) push('Synced offline Ops changes', 'success');
       } finally {
         flushingRef.current = false;

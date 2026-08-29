@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Wrench, Boxes, Timer, FileText, AlertTriangle, History } from 'lucide-react';
+import { ArrowLeft, Wrench, Boxes, Timer, FileText, AlertTriangle, History, ClipboardCheck } from 'lucide-react';
 import {
   useWorkOrder, useUpdateWorkOrderStatus, useAssignWorkOrder, useSetWorkOrderPriority, useWorkOrderSlaBreaches, useWorkOrderIncidents,
   WORK_ORDER_CATEGORY_LABELS, WORK_ORDER_PRIORITY_META, WORK_ORDER_SOURCE_LABELS, WORK_ORDER_NEXT_STATUS,
@@ -15,11 +15,6 @@ import { useToastStore } from '@/components/ui/Toast';
 import { EnumStatusChip, WORK_ORDER_STATUS_STYLES, WORK_ORDER_STATUS_LABELS } from '@/components/ui/StatusChip';
 import { cn, formatDate, formatCurrencyZAR } from '@/lib/utils';
 
-// Same Job/Inventory source split already used on Asset 360's Parts tab —
-// work_order_parts_unified rows carry `source` = 'job_parts' (workshop
-// Parts & Labour form) or 'inventory_movements' (issued from Ops Inventory
-// against this work order). Read-only here: editing parts still happens
-// from whichever system recorded them, not from this generic view.
 const PART_SOURCE_LABELS: Record<string, string> = { job_parts: 'Job', inventory_movements: 'Inventory' };
 
 function Row({ label, value, mono }: { label: string; value: string | null | undefined; mono?: boolean }) {
@@ -67,6 +62,17 @@ export default function WorkOrderDetail() {
   const next = WORK_ORDER_NEXT_STATUS[wo.status];
   const partsTotal = (parts ?? []).reduce((sum: number, p: any) => sum + (p.line_total ?? 0), 0);
 
+  // Generic Ops inspection workflow (RT46 has its own quality module).
+  // Shown when the work order is an inspection category, or is waiting for
+  // approval after field work. Pass → completed; Fail → back to in_progress (rework).
+  const showInspection =
+    wo.category === 'inspection' ||
+    wo.status === 'awaiting_approval' ||
+    (wo.status === 'in_progress' && wo.category === 'inspection');
+  const canInspect =
+    showInspection &&
+    (wo.status === 'in_progress' || wo.status === 'awaiting_approval' || wo.status === 'assigned');
+
   return (
     <div className="px-4 pt-6 pb-24">
       <Link to="/ops/work-orders" className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mb-3">
@@ -105,7 +111,49 @@ export default function WorkOrderDetail() {
         )}
       </div>
 
-      {next && (
+      {canInspect && (
+        <div className="card mb-4 border-brand/30">
+          <div className="flex items-center gap-2 mb-2">
+            <ClipboardCheck className="w-4 h-4 text-brand" />
+            <h2 className="font-heading font-bold text-sm">Inspection outcome</h2>
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+            Record pass to complete this work order, or fail to send it back for rework.
+          </p>
+          <div className="flex gap-2">
+            <button
+              className="btn-primary flex-1 text-sm !py-2.5"
+              disabled={updateStatus.isPending}
+              onClick={async () => {
+                try {
+                  await updateStatus.mutateAsync({ id: wo.id, status: 'completed' });
+                  push('Inspection passed — work order completed', 'success');
+                } catch (e: any) {
+                  push(e.message ?? 'Failed to record pass', 'error');
+                }
+              }}
+            >
+              Pass
+            </button>
+            <button
+              className="btn-secondary flex-1 text-sm !py-2.5 border-danger/40 text-danger"
+              disabled={updateStatus.isPending}
+              onClick={async () => {
+                try {
+                  await updateStatus.mutateAsync({ id: wo.id, status: 'in_progress' });
+                  push('Inspection failed — returned for rework', 'success');
+                } catch (e: any) {
+                  push(e.message ?? 'Failed to record fail', 'error');
+                }
+              }}
+            >
+              Fail / Rework
+            </button>
+          </div>
+        </div>
+      )}
+
+      {next && !canInspect && (
         <button
           className="btn-primary w-full text-sm !py-2.5 mb-4"
           disabled={updateStatus.isPending}

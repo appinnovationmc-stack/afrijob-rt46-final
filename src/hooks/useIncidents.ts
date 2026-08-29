@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganisation } from './useOrganisation';
 import { useAuthStore } from '@/store/authStore';
+import { offlineDb, newLocalId } from '@/lib/offlineDb';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import type { Incident, IncidentCategory, IncidentSeverity, IncidentStatus } from '@/lib/afriops/types';
 
 export function useIncidents(status?: IncidentStatus) {
@@ -26,6 +28,7 @@ export function useIncidents(status?: IncidentStatus) {
 export function useCreateIncident() {
   const { data: org } = useOrganisation();
   const userId = useAuthStore((s) => s.user?.id);
+  const online = useNetworkStatus();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (incident: {
@@ -38,16 +41,26 @@ export function useCreateIncident() {
       latitude?: number;
       longitude?: number;
     }) => {
-      const { data, error } = await supabase
-        .from('incidents')
-        .insert({
-          ...incident,
-          organisation_id: org!.organisation_id,
-          reported_by: userId,
-          occurred_at: incident.occurred_at ?? new Date().toISOString(),
-        })
-        .select()
-        .single();
+      const payload = {
+        ...incident,
+        organisation_id: org!.organisation_id,
+        reported_by: userId,
+        occurred_at: incident.occurred_at ?? new Date().toISOString(),
+      };
+
+      if (!online) {
+        await offlineDb.queuedOpsIncidentMutations.put({
+          localId: newLocalId(),
+          action: 'create',
+          organisationId: org!.organisation_id,
+          payload,
+          createdAt: new Date().toISOString(),
+          synced: false,
+        });
+        return { id: 'local-pending', ...payload } as Incident;
+      }
+
+      const { data, error } = await supabase.from('incidents').insert(payload).select().single();
       if (error) throw error;
       return data as Incident;
     },
@@ -57,12 +70,30 @@ export function useCreateIncident() {
 
 export function useUpdateIncidentStatus() {
   const qc = useQueryClient();
+  const online = useNetworkStatus();
   return useMutation({
     mutationFn: async ({ incidentId, status }: { incidentId: string; status: IncidentStatus }) => {
-      const { error } = await supabase
-        .from('incidents')
-        .update({ status, ...(status === 'resolved' || status === 'closed' ? { resolved_at: new Date().toISOString() } : {}) })
-        .eq('id', incidentId);
+      const updates: Record<string, unknown> = {
+        status,
+        ...(status === 'resolved' || status === 'closed' ? { resolved_at: new Date().toISOString() } : {}),
+      };
+
+      if (!online) {
+        // organisationId is required by the queue schema; use a placeholder —
+        // the sync path only needs incidentId for updates.
+        await offlineDb.queuedOpsIncidentMutations.put({
+          localId: newLocalId(),
+          action: 'update_status',
+          organisationId: 'unknown',
+          incidentId,
+          payload: updates,
+          createdAt: new Date().toISOString(),
+          synced: false,
+        });
+        return;
+      }
+
+      const { error } = await supabase.from('incidents').update(updates).eq('id', incidentId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'incidents'] }),

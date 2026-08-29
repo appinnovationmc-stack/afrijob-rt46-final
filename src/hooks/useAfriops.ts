@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useOrganisation } from './useOrganisation';
+import { offlineDb, newLocalId } from '@/lib/offlineDb';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import * as inventory from '@/lib/afriops/inventory';
 import * as procurement from '@/lib/afriops/procurement';
 import * as documentVault from '@/lib/afriops/documentVault';
@@ -59,10 +61,6 @@ export function useRecordInventoryMovement() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['ops', 'inventory'] });
       qc.invalidateQueries({ queryKey: ['ops', 'inventory-movements', vars.inventory_item_id] });
-      // A movement issued against a work order also feeds
-      // work_order_parts_unified — refresh that view's read hooks too,
-      // otherwise WorkOrderDetail's Parts list and Asset 360's Parts tab
-      // go stale until an unrelated refetch happens.
       if (vars.work_order_id) {
         qc.invalidateQueries({ queryKey: ['work-order-parts-unified', vars.work_order_id] });
         qc.invalidateQueries({ queryKey: ['asset-parts-unified'] });
@@ -131,9 +129,24 @@ export function useCreatePurchaseOrder() {
 }
 
 export function useSubmitPurchaseOrder() {
+  const { data: org } = useOrganisation();
+  const online = useNetworkStatus();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (purchaseOrderId: string) => procurement.submitPurchaseOrder(supabase, purchaseOrderId),
+    mutationFn: async (purchaseOrderId: string) => {
+      if (!online) {
+        await offlineDb.queuedOpsPurchaseOrderMutations.put({
+          localId: newLocalId(),
+          action: 'submit',
+          purchaseOrderId,
+          organisationId: org!.organisation_id,
+          createdAt: new Date().toISOString(),
+          synced: false,
+        });
+        return;
+      }
+      await procurement.submitPurchaseOrder(supabase, purchaseOrderId);
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'purchase-orders'] }),
   });
 }
@@ -142,7 +155,11 @@ export function useApprovePurchaseOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (purchaseOrderId: string) => procurement.approvePurchaseOrder(supabase, purchaseOrderId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ops', 'purchase-orders'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ops', 'purchase-orders'] });
+      qc.invalidateQueries({ queryKey: ['ops', 'notifications'] });
+      qc.invalidateQueries({ queryKey: ['ops', 'notifications-unread-count'] });
+    },
   });
 }
 

@@ -125,6 +125,83 @@ export async function notifyViaRpc(
   return data as Notification;
 }
 
+/**
+ * Best-effort fan-out to every organisation member whose role is in `roles`.
+ * Prefer this for domain events (PO submitted, WO assigned) so the right
+ * personas see an in-app notification without requiring a DB trigger install.
+ * Failures are swallowed so a notification outage never blocks the primary
+ * mutation the caller already completed.
+ */
+export async function notifyOrgRoles(
+  supabase: SupabaseClient,
+  params: {
+    organisation_id: string;
+    roles: string[];
+    type: NotificationType;
+    title: string;
+    body?: string;
+    link_entity_type?: string;
+    link_entity_id?: string;
+    /** Skip notifying this profile (usually the actor who just performed the action). */
+    excludeProfileId?: string | null;
+  }
+): Promise<number> {
+  try {
+    const { data: members, error } = await supabase
+      .from('organisation_members')
+      .select('profile_id, role')
+      .eq('organisation_id', params.organisation_id)
+      .in('role', params.roles);
+    if (error || !members?.length) return 0;
+
+    const recipients = [
+      ...new Set(
+        members
+          .map((m) => m.profile_id as string)
+          .filter((id) => id && id !== params.excludeProfileId)
+      ),
+    ];
+    if (recipients.length === 0) return 0;
+
+    const rows = recipients.map((recipient_profile_id) => ({
+      organisation_id: params.organisation_id,
+      recipient_profile_id,
+      type: params.type,
+      title: params.title,
+      body: params.body ?? null,
+      link_entity_type: params.link_entity_type ?? null,
+      link_entity_id: params.link_entity_id ?? null,
+    }));
+
+    const { error: insertError } = await supabase.from('notifications').insert(rows);
+    if (insertError) return 0;
+    return rows.length;
+  } catch {
+    return 0;
+  }
+}
+
+/** Notify a single profile (e.g. work-order assignee). Best-effort; never throws. */
+export async function notifyProfile(
+  supabase: SupabaseClient,
+  params: {
+    organisation_id: string;
+    recipient_profile_id: string;
+    type: NotificationType;
+    title: string;
+    body?: string;
+    link_entity_type?: string;
+    link_entity_id?: string;
+  }
+): Promise<boolean> {
+  try {
+    await createInAppNotification(supabase, params);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function markAsRead(supabase: SupabaseClient, notificationId: string): Promise<void> {
   const { error } = await supabase
     .from('notifications')
@@ -224,4 +301,3 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   merchant_suspended: 'Merchant suspended',
   merchant_reactivated: 'Merchant reactivated',
 };
-

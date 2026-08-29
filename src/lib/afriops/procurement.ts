@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { PurchaseOrder, PurchaseOrderItem, Supplier } from './types';
+import { notifyOrgRoles, notifyProfile } from './notifications';
 
 // ---------- Suppliers ----------
 
@@ -78,13 +79,42 @@ export async function listPurchaseOrderItems(
 
 // Submits for approval — a plain status update, no RPC needed since there's no business
 // logic to enforce beyond RLS at this stage.
+// After a successful submit, fan out in-app notifications to roles that hold
+// procurement.approve (finance / admin / owner) so the Procurement Officer
+// is no longer blind to whether anyone has been told their PO needs action.
 export async function submitPurchaseOrder(supabase: SupabaseClient, purchaseOrderId: string): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { data: po, error: fetchError } = await supabase
+    .from('purchase_orders')
+    .select('id, organisation_id, status')
+    .eq('id', purchaseOrderId)
+    .single();
+  if (fetchError) throw fetchError;
+  if (!po || po.status !== 'draft') {
+    throw new Error('Purchase order is not in draft status');
+  }
+
   const { error } = await supabase
     .from('purchase_orders')
     .update({ status: 'submitted' })
     .eq('id', purchaseOrderId)
     .eq('status', 'draft'); // guard: only submittable from draft
   if (error) throw error;
+
+  // Best-effort — never fail the submit because notifications could not be written.
+  await notifyOrgRoles(supabase, {
+    organisation_id: po.organisation_id,
+    roles: ['finance', 'admin', 'owner'],
+    type: 'purchase_order_approval_needed',
+    title: 'Purchase order needs approval',
+    body: 'A purchase order was submitted and is waiting for approval.',
+    link_entity_type: 'purchase_order',
+    link_entity_id: purchaseOrderId,
+    excludeProfileId: user?.id,
+  });
 }
 
 // Approval has real business rules enforced server-side (self-approval block, status
@@ -96,7 +126,22 @@ export async function approvePurchaseOrder(supabase: SupabaseClient, purchaseOrd
     // to the UI rather than a generic failure message.
     throw new Error(error.message);
   }
-  return data as PurchaseOrder;
+  const approved = data as PurchaseOrder;
+
+  // Notify the original requester that their PO was approved (if known).
+  if (approved?.requested_by && approved?.organisation_id) {
+    await notifyProfile(supabase, {
+      organisation_id: approved.organisation_id,
+      recipient_profile_id: approved.requested_by,
+      type: 'purchase_order_approved',
+      title: 'Purchase order approved',
+      body: 'Your purchase order has been approved.',
+      link_entity_type: 'purchase_order',
+      link_entity_id: purchaseOrderId,
+    });
+  }
+
+  return approved;
 }
 
 // Receiving posts a real inventory movement server-side and rolls PO status forward.
@@ -113,4 +158,3 @@ export async function receivePurchaseOrderItem(
   if (error) throw new Error(error.message);
   return data as PurchaseOrderItem;
 }
-
